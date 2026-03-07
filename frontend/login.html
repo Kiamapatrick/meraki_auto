@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meraki | Login</title>
+  <meta name="description"
+    content="Sign in to your Meraki Auto account to browse and book premium vehicle rentals.">
+  <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/theme.css"/>
+</head>
+
+<body>
+
+  <div class="auth-shell">
+
+    <!-- ══ LEFT — Brand panel ══════════════════════════════════ -->
+    <aside class="auth-brand-panel" aria-hidden="true">
+      <!-- decorative blobs (CSS ::before = grain, ::after = top blob) -->
+      <div class="blob-b"></div>
+      <div class="panel-rule"></div>
+
+      <!-- Logo — clickable even though panel is aria-hidden for sighted users -->
+      <div class="auth-logo" onclick="window.location.href='index.html'" role="link" tabindex="0"
+        aria-label="Go to Meraki Auto homepage" aria-hidden="false">
+        <span class="auth-logo-name">Meraki Auto</span>
+        <span class="auth-logo-sub">vehicle rentals · Nairobi</span>
+      </div>
+
+      <!-- Central copy -->
+      <div class="auth-panel-body">
+        <p class="auth-panel-eyebrow">Member access</p>
+        <h2 class="auth-panel-headline">
+          Your ride,<br>
+          <em>perfectly</em><br>
+          arranged.
+        </h2>
+        <p>
+          Sign in to manage your bookings, track payment status, and access your
+          secure pick-up codes.
+        </p>
+      </div>
+
+      <!-- Trust row -->
+      <div class="auth-badges">
+        <div class="auth-badge">
+          <span class="auth-badge-icon">🔒</span>
+          Secure login
+        </div>
+        <div class="auth-badge">
+          <span class="auth-badge-icon">🚗</span>
+          Verified vehicles
+        </div>
+        <div class="auth-badge">
+          <span class="auth-badge-icon">📱</span>
+          Instant codes
+        </div>
+      </div>
+    </aside>
+
+    <!-- ══ RIGHT — Form panel ═══════════════════════════════════ -->
+    <main class="auth-form-panel">
+      <div class="auth-box">
+
+        <p class="auth-form-eyebrow">Welcome back</p>
+        <h2>Sign in</h2>
+        <p class="auth-subtitle">Access your bookings and account details</p>
+
+        <div id="statusMsg" class="status-msg"></div>
+
+        <form id="loginForm" novalidate>
+
+          <div class="form-group">
+            <label for="loginEmail">Email address</label>
+            <div class="field-wrap">
+              <span class="input-icon" aria-hidden="true">✉️</span>
+              <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <div class="field-wrap">
+              <span class="input-icon" aria-hidden="true">🔒</span>
+              <input type="password" id="loginPassword" placeholder="Enter your password" required
+                autocomplete="current-password">
+              <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                <span class="password-toggle-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              </button>
+            </div>
+          </div>
+
+          <p class="auth-link forgot-link">
+            <a href="forgot-password.html">Forgot Password?</a>
+          </p>
+
+          <button type="submit" class="auth-btn" id="loginBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-text">Sign In</span>
+          </button>
+
+          <p class="auth-link">
+            Don't have an account? <a href="signup.html">Create one</a>
+          </p>
+
+        </form>
+      </div>
+    </main>
+
+  </div><!-- /auth-shell -->
+
+  <footer class="auth-footer">
+    &copy; 2025 Meraki Auto — Built on Polygon Amoy Testnet
+  </footer>
+
+  <script src="js/auth-common.js"></script>
+  <script src="js/login.js"></script>
+</body>
+
+</html>

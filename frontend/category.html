@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meraki Auto — Category</title>
+
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/index-premium.css" />
+  <link rel="stylesheet" href="css/category.css" />
+</head>
+
+<body>
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <nav id="mainNavbar" class="alina-navbar">
+    <div class="navbar-inner">
+      <div class="navbar-row1">
+        <a class="navbar-logo" href="index.html">Meraki Auto</a>
+        <ul class="navbar-links">
+          <li><a href="index.html" data-page="index">Home</a></li>
+          <li><a href="about.html" data-page="about">About</a></li>
+          <li><a href="contact.html" data-page="contact">Contact</a></li>
+        </ul>
+      </div>
+      <div class="navbar-row2">
+        <div class="navbar-actions">
+          <span class="nav-welcome" id="navWelcome"></span>
+          <a id="loginLink" href="login.html" class="nav-btn nav-btn-outline">Sign In</a>
+          <a id="signupLink" href="signup.html" class="nav-btn nav-btn-solid">Sign Up</a>
+          <div class="wallet-area" id="navWalletWrapper">
+            <button id="connectWallet" class="wallet-connect-btn">
+              <span class="wallet-icon">🦊</span> Connect Wallet
+            </button>
+            <div id="walletInfoRow" class="wallet-connected" style="display:none;">
+              <span class="wallet-status-dot"></span>
+              <span id="walletAddress" class="wallet-addr">—</span>
+              <button id="disconnectWallet" class="wallet-disconnect-btn">✕</button>
+            </div>
+          </div>
+          <div id="avatarDropdown" class="avatar-area" style="display:none;">
+            <button class="avatar-btn" id="avatarToggle" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+              <span class="avatar-initials" id="avatarInitials">?</span>
+              <span class="avatar-name" id="avatarName">User</span>
+            </button>
+            <div class="avatar-menu" id="avatarMenu" role="menu">
+              <a href="my_booking.html" class="avatar-menu-item">📋 My Bookings</a>
+              <a href="dashboard.html" class="avatar-menu-item">👤 Account</a>
+              <div class="avatar-menu-item kyc-status-item">
+                🛡️ KYC Status <span id="kycBadge" class="kyc-badge">—</span>
+              </div>
+              <hr class="avatar-menu-divider">
+              <button id="logoutBtn" class="avatar-menu-item logout-item">🚪 Log Out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="cat-page">
+    <div class="cat-container">
+      <header class="cat-head">
+        <a class="cat-back" href="index.html">← Back to Home</a>
+        <h1 class="cat-title" id="catTitle">Category</h1>
+        <p class="cat-sub" id="catSub">Explore our curated selection.</p>
+      </header>
+
+      <section class="cat-section" aria-label="Vehicles">
+        <div id="catStatus" class="cat-status" style="display:none;"></div>
+        <div id="catGrid" class="cat-grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    Built on Polygon Amoy Testnet &nbsp;·&nbsp; 2025 Meraki Auto
+  </footer>
+
+  <script src="js/nav.js"></script>
+  <script>
+    const progressBar = document.getElementById('scrollProgress');
+    window.addEventListener('scroll', () => {
+      const h = document.documentElement;
+      const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+      if (progressBar) progressBar.style.width = pct + '%';
+    }, { passive: true });
+
+    function prettyCategory(cat) {
+      const map = {
+        premium: 'Premium Collection',
+        everyday: 'Everyday Drive',
+        enthusiast: 'Enthusiast Garage',
+        utility: 'Utility & Adventure',
+        motorbike: 'Two Wheels',
+        public: 'Public Transport'
+      };
+      return map[cat] || (cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : 'Category');
+    }
+
+    function categoryDescription(cat) {
+      const map = {
+        premium: 'Executive comfort and elevated presence — intentionally selected.',
+        everyday: 'Refined daily drivers built for calm city movement.',
+        enthusiast: 'Performance and character for the driver who feels everything.',
+        utility: 'Confident capability — work, adventure, and everything between.',
+        motorbike: 'Light, agile, and purposeful — ride with precision.',
+        public: 'Group-ready options with comfort and reliability.'
+      };
+      return map[cat] || 'Explore our curated selection.';
+    }
+
+    function imageSrc(vehicle) {
+      const img = vehicle?.image || vehicle?.mainImage;
+      if (!img) return 'img/placeholder.jpg';
+      if (img.startsWith('http')) return img;
+      if (img.startsWith('/')) return img;
+      if (img.startsWith('./')) return img;
+      return img;
+    }
+
+    function formatPriceKES(value) {
+      if (value == null || value === '') return '—';
+      const n = Number(value);
+      if (Number.isNaN(n)) return String(value);
+      return n.toLocaleString();
+    }
+
+    function cardTemplate(v) {
+      const id = v?._id || v?.id;
+      const name = v?.name || v?.title || 'Vehicle';
+      const price = formatPriceKES(v?.dailyPrice ?? v?.price);
+      const transmission = v?.transmission || '—';
+      const fuel = v?.fuelType || '—';
+
+      const bookingHref = `booking.html?id=${encodeURIComponent(id)}`;
+
+      return `
+        <article class="cat-card" role="link" tabindex="0" data-booking-href="${bookingHref}" onclick="window.location.href='${bookingHref}'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.location.href='${bookingHref}';}">
+          <div class="cat-card__imgwrap">
+            <img class="cat-card__img" src="${imageSrc(v)}" alt="${name}" loading="lazy" />
+            <div class="cat-card__veil"></div>
+            <span class="cat-card__tag">Premium</span>
+          </div>
+          <div class="cat-card__body">
+            <h3 class="cat-card__title">${name}</h3>
+            <div class="cat-card__price"><strong>KES ${price}</strong> / day</div>
+            <div class="cat-card__meta">
+              <div class="cat-meta"><span class="cat-meta__k">Transmission</span><span class="cat-meta__v">${transmission}</span></div>
+              <div class="cat-meta"><span class="cat-meta__k">Fuel</span><span class="cat-meta__v">${fuel}</span></div>
+            </div>
+            <a class="index-btn index-btn--primary cat-card__btn" href="${bookingHref}" onclick="event.stopPropagation()">View Details</a>
+          </div>
+        </article>
+      `;
+    }
+
+    async function loadCategory() {
+      const category = new URLSearchParams(window.location.search).get('category');
+
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const backendOrigin = (isLocalHost && window.location.port && window.location.port !== '5000')
+        ? 'http://localhost:5000'
+        : window.location.origin;
+
+      const titleEl = document.getElementById('catTitle');
+      const subEl = document.getElementById('catSub');
+      const statusEl = document.getElementById('catStatus');
+      const gridEl = document.getElementById('catGrid');
+
+      const pretty = prettyCategory(category);
+      if (titleEl) titleEl.textContent = pretty;
+      if (subEl) subEl.textContent = categoryDescription(category);
+      document.title = `Meraki Auto — ${pretty}`;
+
+      if (!category) {
+        statusEl.style.display = 'block';
+        statusEl.className = 'cat-status cat-status--empty';
+        statusEl.textContent = 'Nothing available in this category yet.';
+        return;
+      }
+
+      try {
+        statusEl.style.display = 'block';
+        statusEl.className = 'cat-status cat-status--loading';
+        statusEl.textContent = 'Loading vehicles…';
+
+        const res = await fetch(`${backendOrigin}/api/vehicles?category=${encodeURIComponent(category)}`);
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const vehicles = await res.json();
+
+        if (!Array.isArray(vehicles) || vehicles.length === 0) {
+          gridEl.innerHTML = '';
+          statusEl.style.display = 'block';
+          statusEl.className = 'cat-status cat-status--empty';
+          statusEl.textContent = 'Nothing available in this category yet.';
+          return;
+        }
+
+        statusEl.style.display = 'none';
+        gridEl.innerHTML = vehicles.map(cardTemplate).join('');
+      } catch (err) {
+        console.error('Category load error:', err);
+        gridEl.innerHTML = '';
+        statusEl.style.display = 'block';
+        statusEl.className = 'cat-status cat-status--error';
+        statusEl.textContent = 'We couldn\'t load this category right now. Please try again.';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadCategory);
+  </script>
+</body>
+
+</html>

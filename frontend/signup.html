@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meraki | Sign Up</title>
+  <meta name="description" content="Create your Meraki Auto account to discover and book premium vehicle rentals.">
+  <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/theme.css"/>
+</head>
+
+<body>
+
+  <div class="auth-shell">
+
+    <!-- ══ LEFT — Brand panel ══════════════════════════════════ -->
+    <aside class="auth-brand-panel" aria-hidden="true">
+      <div class="blob-b"></div>
+      <div class="panel-rule"></div>
+
+      <div class="auth-logo" onclick="window.location.href='index.html'" role="link" tabindex="0"
+        aria-label="Go to Meraki Auto homepage" aria-hidden="false">
+        <span class="auth-logo-name">Meraki Auto</span>
+        <span class="auth-logo-sub">vehicle rentals · Nairobi</span>
+      </div>
+
+      <div class="auth-panel-body">
+        <p class="auth-panel-eyebrow">New member</p>
+        <h2 class="auth-panel-headline">
+          Begin your<br>
+          <em>curated</em><br>
+          experience.
+        </h2>
+        <p>
+          Create an account to unlock verified rentals, seamless payments, and
+          instant pick-up access codes delivered to your phone.
+        </p>
+      </div>
+
+      <div class="auth-badges">
+        <div class="auth-badge">
+          <span class="auth-badge-icon">✅</span>
+          Free to join
+        </div>
+        <div class="auth-badge">
+          <span class="auth-badge-icon">🔗</span>
+          Crypto &amp; M-Pesa
+        </div>
+        <div class="auth-badge">
+          <span class="auth-badge-icon">⭐</span>
+          Verified vehicles
+        </div>
+      </div>
+    </aside>
+
+    <!-- ══ RIGHT — Form panel ═══════════════════════════════════ -->
+    <main class="auth-form-panel">
+      <div class="auth-box">
+
+        <p class="auth-form-eyebrow">Get started</p>
+        <h2>Create account</h2>
+        <p class="auth-subtitle">Join thousands of happy renters in Nairobi</p>
+
+        <div id="statusMsg" class="status-msg"></div>
+
+        <form id="signupForm" novalidate>
+
+          <div class="form-group">
+            <label for="username">Full name</label>
+            <div class="field-wrap">
+              <span class="input-icon" aria-hidden="true">👤</span>
+              <input type="text" id="username" placeholder="Jane Doe" required autocomplete="name">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="signupEmail">Email address</label>
+            <div class="field-wrap">
+              <span class="input-icon" aria-hidden="true">✉️</span>
+              <input type="email" id="signupEmail" placeholder="you@example.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="signupPassword">Password</label>
+            <div class="field-wrap">
+              <span class="input-icon" aria-hidden="true">🔒</span>
+              <input type="password" id="signupPassword" placeholder="Min. 6 characters" required minlength="6"
+                autocomplete="new-password">
+              <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                <span class="password-toggle-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="auth-btn" id="signupBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-text">Create Account</span>
+          </button>
+
+          <p class="auth-link">
+            Already have an account? <a href="login.html">Sign In</a>
+          </p>
+
+        </form>
+      </div>
+    </main>
+
+  </div><!-- /auth-shell -->
+
+  <footer class="auth-footer">
+    &copy; 2025 Meraki Auto — Built on Polygon Amoy Testnet
+  </footer>
+
+  <script src="js/auth-common.js"></script>
+  <script src="js/signup.js"></script>
+</body>
+
+</html>

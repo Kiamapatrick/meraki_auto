@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meraki | Start Verification</title>
+  <link rel="stylesheet" href="css/kyc-luxury.css" />
+  <link rel="stylesheet" href="css/theme.css"/>
+</head>
+
+<body>
+
+  <div class="kyc-wrap">
+
+    <div class="kyc-brand">
+      <a href="index.html">Meraki<span>Auto</span></a>
+    </div>
+
+    <div class="kyc-card">
+
+      <div class="kyc-icon kyc-icon--success">
+        <svg viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+
+      <span class="kyc-eyebrow">Email Confirmed</span>
+      <h1>One step<br><em>remaining.</em></h1>
+
+      <p class="kyc-message">
+        Your email is confirmed. Now let's verify your identity to unlock full access to the platform.
+      </p>
+
+      <div class="kyc-rule"></div>
+
+      <span class="kyc-section-label">What you'll need</span>
+      <ul class="kyc-list">
+        <li>
+          <svg viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>A valid government-issued ID — <strong>passport, driver's licence, or national ID</strong></span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>A device with a camera — phone, tablet, or webcam</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>About <strong>3–5 minutes</strong> in a well-lit environment</span>
+        </li>
+      </ul>
+
+      <div id="kycError" class="kyc-status kyc-status--error"></div>
+
+      <div class="kyc-actions">
+        <button class="kyc-btn kyc-btn--primary" id="startBtn">Begin Identity Verification</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const jwtToken = urlParams.get('token');
+    const userId = urlParams.get('uid');
+    const API_BASE = 'https://localhost:5000';
+
+    const startBtn = document.getElementById('startBtn');
+    const errorEl = document.getElementById('kycError');
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+
+    if (!jwtToken || !userId) {
+      showError('Missing authentication. Please sign up again.');
+      startBtn.disabled = true;
+    }
+
+    startBtn.addEventListener('click', async () => {
+      errorEl.style.display = 'none';
+      startBtn.disabled = true;
+      startBtn.textContent = 'Preparing session\u2026';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/kyc/didit/start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwtToken}`
+          }
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to start verification');
+
+        localStorage.setItem('authToken', jwtToken);
+        localStorage.setItem('userId', userId);
+        window.location.href = data.sessionUrl;
+
+      } catch (error) {
+        showError(error.message || 'Failed to start verification. Please try again.');
+        startBtn.disabled = false;
+        startBtn.textContent = 'Begin Identity Verification';
+      }
+    });
+  </script>
+
+</body>
+
+</html>

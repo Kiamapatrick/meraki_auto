@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meraki Auto — Curated Premium Fleet</title>
+
+  <!-- Premium Theme (global design system) -->
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/index-premium.css" />
+  <link rel="stylesheet" href="css/avatar-dropdown.css" />
+</head>
+
+<body>
+  <!-- Progress bar -->
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <!-- ═══ Premium Navbar ═══ -->
+  <nav id="mainNavbar" class="alina-navbar">
+    <div class="navbar-inner">
+      <div class="navbar-row1">
+        <a class="navbar-logo" href="index.html">Meraki Auto</a>
+        <ul class="navbar-links">
+          <li><a href="index.html" data-page="index">Home</a></li>
+          <li><a href="about.html" data-page="about">About</a></li>
+          <li><a href="contact.html" data-page="contact">Contact</a></li>
+        </ul>
+      </div>
+      <div class="navbar-row2">
+        <div class="navbar-actions">
+          <span class="nav-welcome" id="navWelcome"></span>
+          <a id="loginLink" href="login.html" class="nav-btn nav-btn-outline">Sign In</a>
+          <a id="signupLink" href="signup.html" class="nav-btn nav-btn-solid">Sign Up</a>
+          <div class="wallet-area" id="navWalletWrapper">
+            <button id="connectWallet" class="wallet-connect-btn">
+              <span class="wallet-icon">🦊</span> Connect Wallet
+            </button>
+            <div id="walletInfoRow" class="wallet-connected" style="display:none;">
+              <span class="wallet-status-dot"></span>
+              <span id="walletAddress" class="wallet-addr">—</span>
+              <button id="disconnectWallet" class="wallet-disconnect-btn">✕</button>
+            </div>
+          </div>
+          <div id="avatarDropdown" class="avatar-area" style="display:none;">
+            <button class="avatar-btn" id="avatarToggle" aria-haspopup="true" aria-expanded="false"
+              aria-label="Account menu">
+              <span class="avatar-initials" id="avatarInitials">?</span>
+              <span class="avatar-name" id="avatarName">User</span>
+            </button>
+            <div class="avatar-menu" id="avatarMenu" role="menu">
+              <a href="my_booking.html" class="avatar-menu-item">📋 My Bookings</a>
+              <a href="dashboard.html" class="avatar-menu-item">👤 Account</a>
+              <div class="avatar-menu-item kyc-status-item">
+                🛡️ KYC Status <span id="kycBadge" class="kyc-badge">—</span>
+              </div>
+              <hr class="avatar-menu-divider">
+              <button id="logoutBtn" class="avatar-menu-item logout-item">🚪 Log Out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <header class="index-hero" id="hero">
+    <div class="index-hero__bg" aria-hidden="true"></div>
+    <div class="index-hero__overlay" aria-hidden="true"></div>
+    <div class="index-hero__inner">
+      <span class="index-hero__eyebrow">Curated Premium Fleet</span>
+      <h1 class="index-hero__title">Drive with Intention.</h1>
+      <p class="index-hero__subtitle">A refined collection built for comfort, presence, and quiet confidence.</p>
+      <div class="hero-search" aria-label="Search vehicles">
+        <div class="hero-search__bar">
+          <input id="heroSearchInput" class="hero-search__input" type="text" placeholder="Search by car name or location" autocomplete="off" />
+          <select id="heroCategorySelect" class="hero-search__select" aria-label="Category">
+            <option value="">All Categories</option>
+            <option value="premium">Premium Collection</option>
+            <option value="everyday">Everyday Drive</option>
+            <option value="enthusiast">Enthusiast Garage</option>
+            <option value="utility">Utility &amp; Adventure</option>
+            <option value="motorbike">Two Wheels</option>
+            <option value="public">Public Transport</option>
+          </select>
+          <button id="heroSearchBtn" class="hero-search__btn" type="button" aria-label="Search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            Search
+          </button>
+        </div>
+        <p id="heroSearchMeta" class="hero-search__meta" style="display:none;"></p>
+      </div>
+      <div class="index-hero__ctas">
+        <a href="#featured" class="index-btn index-btn--primary hero-cinema__cta">
+          Explore Fleet
+        </a>
+        <a href="#featured" class="index-btn index-btn--secondary">View Premium Collection</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ EXPLORE BY CATEGORY ═══ -->
+  <section class="index-section" id="categories" aria-label="Explore by Category">
+    <div class="index-container">
+      <div class="index-section__head">
+        <h2 class="index-section__title">Explore by Category</h2>
+      </div>
+      <div class="category-grid">
+        <a class="category-card" href="category.html?category=premium" style="--cat-img:url('../img/premium1.jpg')">
+          <span class="category-card__label">Premium Collection</span>
+        </a>
+        <a class="category-card" href="category.html?category=everyday" style="--cat-img:url('../img/everyday1.jpg')">
+          <span class="category-card__label">Everyday Drive</span>
+        </a>
+        <a class="category-card" href="category.html?category=enthusiast" style="--cat-img:url('../img/enthusiast1.jpg')">
+          <span class="category-card__label">Enthusiast Garage</span>
+        </a>
+        <a class="category-card" href="category.html?category=utility" style="--cat-img:url('../img/utility1.jpg')">
+          <span class="category-card__label">Utility &amp; Adventure</span>
+        </a>
+        <a class="category-card" href="category.html?category=motorbike" style="--cat-img:url('../img/motorbike1.jpg')">
+          <span class="category-card__label">Two Wheels</span>
+        </a>
+        <a class="category-card" href="category.html?category=public" style="--cat-img:url('../img/bus1.jpg')">
+          <span class="category-card__label">Public Transport</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FEATURED PREMIUM CARS ═══ -->
+  <main class="index-section" id="featured" aria-label="Featured Premium Vehicles">
+    <div class="index-container">
+      <div class="index-section__head" id="sectionHeader">
+        <h2 class="index-section__title">Featured Premium Vehicles</h2>
+        <a class="index-btn index-btn--secondary" href="view-all.html" style="margin-top:12px;">View All Vehicles</a>
+      </div>
+
+      <div id="featuredVehicles" class="featured-grid"></div>
+
+      <div id="unitsEmpty" class="index-empty" style="display:none;">
+        <span class="empty-label">No vehicles available.</span>
+        <span class="empty-sub">Check back soon — the fleet is updated regularly.</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ WHY CHOOSE MERAKI ═══ -->
+  <section class="index-section index-section--muted" id="why" aria-label="Why Choose Meraki">
+    <div class="index-container">
+      <div class="index-section__head">
+        <h2 class="index-section__title">Why Choose Meraki</h2>
+      </div>
+      <div class="why-grid">
+        <div class="why-card">
+          <div class="why-icon" aria-hidden="true">⟡</div>
+          <h3 class="why-title">Curated Fleet</h3>
+          <p class="why-text">Every vehicle is selected for comfort, presence, and design integrity.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon" aria-hidden="true">⟡</div>
+          <h3 class="why-title">Verified Quality</h3>
+          <p class="why-text">Thoughtful standards and consistent presentation — no surprises.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon" aria-hidden="true">⟡</div>
+          <h3 class="why-title">Seamless Booking</h3>
+          <p class="why-text">Clear pricing, calm UX, and a reservation flow designed to feel effortless.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon" aria-hidden="true">⟡</div>
+          <h3 class="why-title">Premium Support</h3>
+          <p class="why-text">Responsive and discreet — we respect your time and your privacy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ TESTIMONIALS ═══ -->
+  <section class="index-section" id="testimonials" aria-label="Testimonials">
+    <div class="index-container">
+      <div class="index-section__head">
+        <h2 class="index-section__title">Testimonials</h2>
+      </div>
+      <div class="testimonials-grid">
+        <article class="testimonial-card">
+          <div class="testimonial-stars" aria-label="5 stars">★★★★★</div>
+          <p class="testimonial-text">Beautiful experience. The car felt immaculate and the process was calm and refined.</p>
+          <div class="testimonial-name">Amina</div>
+        </article>
+        <article class="testimonial-card">
+          <div class="testimonial-stars" aria-label="5 stars">★★★★★</div>
+          <p class="testimonial-text">Exactly the level of quality I expect. Clean, premium, and easy from start to finish.</p>
+          <div class="testimonial-name">David</div>
+        </article>
+        <article class="testimonial-card">
+          <div class="testimonial-stars" aria-label="5 stars">★★★★★</div>
+          <p class="testimonial-text">A curated fleet done right. Everything feels intentional — from visuals to booking.</p>
+          <div class="testimonial-name">Wanjiku</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FINAL CTA ═══ -->
+  <section class="final-cta" id="cta" aria-label="Final Call to Action">
+    <div class="index-container">
+      <h2 class="final-cta__title">Ready to Experience Meraki?</h2>
+      <p class="final-cta__sub">Explore the fleet and reserve your next drive in minutes.</p>
+      <a href="#featured" class="index-btn index-btn--primary index-btn--lg">Explore Fleet</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    Built on Polygon Amoy Testnet &nbsp;·&nbsp; 2025 Meraki Auto
+  </footer>
+
+  <!-- Scripts -->
+  <script type="module" src="js/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    crossorigin="anonymous"></script>
+  <script src="js/nav.js"></script>
+</body>
+
+</html>
