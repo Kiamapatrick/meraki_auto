@@ -7,8 +7,8 @@
     'use strict';
 
     // ─── Config ──────────────────────────────────────────────────
-    const API_BASE = 'http://localhost:5000';
-    const API_BASE_URL = 'http://localhost:5000';
+    const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
+    const API_BASE_URL = 'https://meraki-backend-jdl2.onrender.com';
 
     const TOKEN_KEY = 'userToken';
 

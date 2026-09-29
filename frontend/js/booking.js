@@ -20,7 +20,7 @@ import {
 // ===============================
 // CONFIG
 // ===============================
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
 
 const TOKEN_KEY = 'userToken';
 const FIXED_DEPOSIT = 5;
@@ -38,7 +38,7 @@ let paymentState = {
   nights: 0
 };
 
-const MPESA_BASE = "http://localhost:5000";
+const MPESA_BASE = "https://meraki-backend-jdl2.onrender.com";
 const PAYSTACK_PUBLIC_KEY = 'pk_test_a5bc7124026172186b9b17687145910613f32fe0'; // Get from .env or config
 
 // STATE
@@ -53,6 +53,12 @@ const TRANSACTION_COOLDOWN = 10000; // 10 seconds between transactions
 // ===============================
 function getToken() {
   return localStorage.getItem(TOKEN_KEY);
+}
+
+function normalizeUnitId(id) {
+  const v = String(id ?? '').trim();
+  if (!v || v === 'undefined' || v === 'null') return null;
+  return v;
 }
 
 function showStatus(msg, type = 'info') {
@@ -1577,7 +1583,8 @@ async function createBooking() {
   }
 
   const unitIdFromUrl = new URLSearchParams(window.location.search).get("id");
-  if (!unitIdFromUrl) {
+  const normalizedUnitId = normalizeUnitId(unitIdFromUrl);
+  if (!normalizedUnitId) {
     showStatus('Unit ID is missing', 'error');
     return;
   }
@@ -1618,7 +1625,7 @@ async function createBooking() {
 
   try {
     // Fetch existing bookings to check for conflicts
-    const calendarRes = await fetch(`${API_BASE}/api/calendar/${unitIdFromUrl}`);
+    const calendarRes = await fetch(`${API_BASE}/api/calendar/${normalizedUnitId}`);
     const calendarData = await calendarRes.json();
     const existingBookings = calendarData.bookings || [];
 
@@ -1635,9 +1642,9 @@ async function createBooking() {
 
     const walletAddr = getWalletAddress();
     const walletSuffix = walletAddr ? walletAddr.slice(2, 8) : 'offchain';
-    const bookingId = `booking_${Date.now()}_${unitIdFromUrl}_${walletSuffix}_${Math.random().toString(36).slice(2, 10)}`; const bookingData = {
+    const bookingId = `booking_${Date.now()}_${normalizedUnitId}_${walletSuffix}_${Math.random().toString(36).slice(2, 10)}`; const bookingData = {
       bookingId,
-      vehicleId: unitIdFromUrl,
+      vehicleId: normalizedUnitId,
       startDate: startDateISO,
       endDate: endDateISO,
       paymentMethod,
@@ -1673,7 +1680,7 @@ async function createBooking() {
 
         // ✅ Use the callback URL from backend (already has real reference)
         const callbackUrl = result.callbackUrl ||
-          `${window.location.origin}/booking.html?id=${unitIdFromUrl}&bookingId=${bookingData.bookingId}`;
+          `${window.location.origin}/booking.html?id=${normalizedUnitId}&bookingId=${bookingData.bookingId}`;
 
         // ✅ Paystack will add their reference automatically
         const paystackUrl = result.authorization_url;
@@ -1873,10 +1880,12 @@ async function loadRentalDetails() {
     const titleEl = document.getElementById('rentalTitle');
     const descEl = document.getElementById('rentalDescription');
     const priceEl = document.getElementById('unitPrice');
+    const seatsEl = document.getElementById('hlGuests');
 
     if (titleEl) titleEl.textContent = unit.name;
     if (descEl) descEl.textContent = unit.description;
     if (priceEl) priceEl.textContent = `KES ${Number(unit.dailyPrice || 0).toLocaleString()} / day`;
+    if (seatsEl) seatsEl.textContent = unit?.seats ? String(unit.seats) : '—';
 
   } catch (err) {
     console.error('Failed to load rental:', err);
@@ -1889,7 +1898,7 @@ async function loadRentalDetails() {
 // ===============================
 document.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
-  unitId = urlParams.get('id');
+  unitId = normalizeUnitId(urlParams.get('id'));
 
   if (!unitId) {
     console.error('❌ No unit ID in URL');
@@ -1921,8 +1930,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (savedCallback) {
     try {
       const { reference, bookingId } = JSON.parse(savedCallback);
-      const unitIdFromUrl = new URLSearchParams(window.location.search).get('id');
-      const newUrl = window.location.pathname + `?id=${unitIdFromUrl}&reference=${reference}&bookingId=${bookingId}`;
+      const unitIdFromUrl = normalizeUnitId(new URLSearchParams(window.location.search).get('id'));
+      const base = window.location.pathname;
+      const newUrl = unitIdFromUrl
+        ? `${base}?id=${unitIdFromUrl}&reference=${reference}&bookingId=${bookingId}`
+        : `${base}?reference=${reference}&bookingId=${bookingId}`;
       window.history.replaceState({}, '', newUrl);
       await checkPaystackCallback();
     } catch (err) {
@@ -1980,14 +1992,15 @@ async function checkPaystackCallback() {
     localStorage.setItem('paystackCallback', JSON.stringify({ reference, bookingId }));
 
     // Clean URL
-    const unitIdFromUrl = urlParams.get('id');
+    const unitIdFromUrl = normalizeUnitId(urlParams.get('id'));
     if (unitIdFromUrl) {
       window.history.replaceState({}, '', window.location.pathname + `?id=${unitIdFromUrl}`);
     }
 
     // Redirect to login after 3 seconds
+    const redirectBase = window.location.pathname + (unitIdFromUrl ? '?id=' + unitIdFromUrl : '');
     setTimeout(() => {
-      window.location.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + '?id=' + unitIdFromUrl)}`;
+      window.location.href = `login.html?redirect=${encodeURIComponent(redirectBase)}`;
     }, 3000);
 
     return;
@@ -2022,10 +2035,11 @@ async function checkPaystackCallback() {
           // Save callback for retry
           localStorage.setItem('paystackCallback', JSON.stringify({ reference, bookingId }));
 
-          const unitIdFromUrl = urlParams.get('id');
+          const unitIdFromUrl = normalizeUnitId(urlParams.get('id'));
+          const redirectBase = window.location.pathname + (unitIdFromUrl ? '?id=' + unitIdFromUrl : '');
           setTimeout(() => {
             localStorage.removeItem(TOKEN_KEY);
-            window.location.href = `login.html?redirect=${encodeURIComponent(window.location.pathname + '?id=' + unitIdFromUrl)}`;
+            window.location.href = `login.html?redirect=${encodeURIComponent(redirectBase)}`;
           }, 2000);
 
           break;
@@ -2073,8 +2087,12 @@ async function checkPaystackCallback() {
             // ✅ Clean URL and remove callback data from localStorage
             localStorage.removeItem('paystackCallback');
             localStorage.removeItem('pendingPaystackBooking'); // ✅ ADD THIS
-            const unitIdFromUrl = urlParams.get('id');
-            window.history.replaceState({}, '', window.location.pathname + `?id=${unitIdFromUrl}`);
+            const unitIdFromUrl = normalizeUnitId(urlParams.get('id'));
+            if (unitIdFromUrl) {
+              window.history.replaceState({}, '', window.location.pathname + `?id=${unitIdFromUrl}`);
+            } else {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
 
             break;
           } else {

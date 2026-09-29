@@ -29,47 +29,69 @@
     will-change: transform;
 }
 
-/* Gallery fills hero completely */
-.booking-hero .gallery-grid {
+/* Mini gallery fills hero completely */
+.booking-hero .vehicle-gallery {
     position: absolute;
     inset: 0;
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
-    grid-template-rows: 50% 50%;
-    gap: 3px;
     width: 100%;
     height: 100%;
     border-radius: 0 !important;
     border: none !important;
-    /* Subtle scale-down driven by JS scroll class */
     transform: scale(1);
-    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-        filter 0.5s ease;
-    will-change: transform, filter;
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
 }
 
-/* When content begins to cover hero, gallery dims slightly */
-.booking-hero.hero-covered .gallery-grid {
+/* Keep the premium scale motion, but do NOT darken images */
+.booking-hero.hero-covered .vehicle-gallery {
     transform: scale(1.03);
-    filter: brightness(0.78) saturate(0.9);
 }
 
-.booking-hero .gallery-grid img {
+.booking-hero .vehicle-gallery__main {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.booking-hero .gallery-grid img:first-child {
-    grid-row: 1 / 3;
+.booking-hero .vehicle-gallery__thumbs {
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    bottom: 28px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    overflow-x: auto;
+    padding: 10px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(10px);
+    z-index: 3;
 }
 
-/* Subtle hover on individual cells — desktop only */
+.booking-hero .vehicle-gallery__thumb {
+    width: 74px;
+    height: 54px;
+    object-fit: cover;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    opacity: 0.92;
+    transition: 0.25s ease;
+    flex: 0 0 auto;
+}
+
 @media (hover: hover) {
-    .booking-hero .gallery-grid img:hover {
-        transform: scale(1.04);
-        z-index: 1;
+    .booking-hero .vehicle-gallery__main:hover {
+        transform: scale(1.02);
+    }
+
+    .booking-hero .vehicle-gallery__thumb:hover {
+        opacity: 1;
+        transform: translateY(-1px);
+        border-color: rgba(37, 99, 235, 0.55);
     }
 }
 
@@ -77,12 +99,7 @@
 .hero-overlay {
     position: absolute;
     inset: 0;
-    background:
-        linear-gradient(to bottom,
-            rgba(0, 0, 0, 0.08) 0%,
-            rgba(0, 0, 0, 0.02) 40%,
-            rgba(0, 0, 0, 0.55) 78%,
-            rgba(0, 0, 0, 0.78) 100%);
+    background: none;
     z-index: 2;
     pointer-events: none;
 }
@@ -157,6 +174,108 @@
         opacity: 0.9;
         transform: scaleY(1.15);
     }
+}
+
+/* ─────────────────────────────────────────────────
+   LIGHTBOX — Full-screen image viewer
+   ───────────────────────────────────────────────── */
+
+body.gallery-lightbox-open {
+    overflow: hidden;
+}
+
+.gallery-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.92);
+}
+
+.gallery-lightbox.is-open {
+    display: flex;
+}
+
+.gallery-lightbox__inner {
+    position: relative;
+    width: min(1100px, 94vw);
+    height: min(760px, 86vh);
+    display: grid;
+    place-items: center;
+}
+
+.gallery-lightbox__image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    user-select: none;
+    -webkit-user-drag: none;
+    touch-action: pan-y;
+}
+
+.gallery-lightbox__counter {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+}
+
+.gallery-lightbox__close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(15, 23, 42, 0.55);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.gallery-lightbox__nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(15, 23, 42, 0.55);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 34px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.gallery-lightbox__nav:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.gallery-lightbox__nav--prev {
+    left: 18px;
+}
+
+.gallery-lightbox__nav--next {
+    right: 18px;
 }
 
 /* ─────────────────────────────────────────────────

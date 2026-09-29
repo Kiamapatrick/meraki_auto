@@ -1,10 +1,12 @@
 /* ── Scroll progress bar ── */
 const progressBar = document.getElementById('scrollProgress');
-window.addEventListener('scroll', () => {
-  const h = document.documentElement;
-  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
-  progressBar.style.width = pct + '%';
-}, { passive: true });
+if (progressBar) {
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement;
+    const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+    progressBar.style.width = pct + '%';
+  }, { passive: true });
+}
 
 /* ── Smooth scroll for hero CTA ── */
 document.querySelector('.hero-cinema__cta[href="#featured"]')?.addEventListener('click', (e) => {
@@ -31,7 +33,7 @@ function normalizeText(v) {
 }
 
 function rentalId(r) {
-  return r?.id ?? r?._id ?? '';
+  return r?.id ?? r?._id ?? r?.vehicleId ?? r?.unitId ?? r?.unitId?._id ?? '';
 }
 
 function rentalTitle(r) {
@@ -92,13 +94,13 @@ function filterVehicles(searchValue = '', selectedCategory = '') {
 const sectionHeader = document.getElementById('sectionHeader');
 if (sectionHeader) revealObs.observe(sectionHeader);
 
-const API_BASE = 'http://localhost:5000';
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
+const API_BASE_URL = 'https://meraki-backend-jdl2.onrender.com';
 
 function imageSrc(rental) {
   const isFile = typeof window !== 'undefined' && window.location?.protocol === 'file:';
   const root = isFile ? '' : '/';
-  const img = rental?.mainImage || rental?.image;
+  const img = rental?.mainImage || rental?.images?.[0] || rental?.image;
   if (!img) return `${root}img/placeholder.jpg`;
   if (img.startsWith('http')) return img;
   if (img.startsWith('/')) return isFile ? img.slice(1) : img;
@@ -115,6 +117,7 @@ function createFeaturedCard(r) {
   const wrap = document.createElement('div');
   wrap.className = 'featured-card';
 
+  const id = rentalId(r);
   const title = r.title || r.name || 'Premium Vehicle';
   const price = r.dailyPrice ?? r.price;
   const priceLabel = price == null ? '—' : Number(price).toLocaleString();
@@ -135,7 +138,7 @@ function createFeaturedCard(r) {
       </div>
       <div class="featured-price"><strong>KES ${priceLabel}</strong> / day</div>
       <div class="featured-actions">
-        <a class="index-btn index-btn--primary" href="booking.html?id=${r.id}">View Details</a>
+        <a class="index-btn index-btn--primary" href="booking.html?id=${encodeURIComponent(id)}">View Details</a>
       </div>
     </div>
   `;
@@ -150,11 +153,28 @@ function wireHeroSearch() {
 
   if (!input && !sel && !btn) return;
 
-  const run = () => filterVehicles(input?.value || '', sel?.value || '');
+  const runLocal = () => filterVehicles(input?.value || '', sel?.value || '');
 
-  input?.addEventListener('input', run);
-  sel?.addEventListener('change', run);
-  btn?.addEventListener('click', run);
+const runApi = () => {
+  const q = input?.value?.trim() || '';
+  const category = sel?.value || '';
+  if (!q && !category) return;
+
+  // Redirect to search.html with URL params
+  const params = new URLSearchParams({ q, category });
+  window.location.href = `search.html?${params.toString()}`;
+};
+
+  input?.addEventListener('input', runLocal);
+  sel?.addEventListener('change', runLocal);
+  btn?.addEventListener('click', runApi);
+  // Allow Enter key in input to trigger API search
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      runApi();
+    }
+  });
 }
 
 function curatedFeatured(rentals, limit = 6) {
@@ -184,12 +204,12 @@ async function loadRentals() {
     const rentals = await res.json();
 
     if (!Array.isArray(rentals) || rentals.length === 0) {
-      emptyEl.style.display = 'block';
+      if (emptyEl) emptyEl.style.display = 'block';
       if (featuredEl) featuredEl.innerHTML = '';
       return;
     }
 
-    emptyEl.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'none';
 
     const featured = curatedFeatured(rentals, 6);
     if (featuredEl) {
@@ -211,3 +231,6 @@ async function loadRentals() {
 }
 
 document.addEventListener('DOMContentLoaded', loadRentals);
+
+/* ── EXPORTS for use in other pages (e.g., search.html) ── */
+export { createFeaturedCard, revealObs };

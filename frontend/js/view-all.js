@@ -1,5 +1,5 @@
 (function () {
-  const API_BASE = 'http://localhost:5000';
+  const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
 
   const PAGE_SIZE = 12;
 
@@ -55,7 +55,7 @@
   }
 
   function rentalId(r) {
-    return r?.id ?? r?._id ?? '';
+    return r?.id ?? r?._id ?? r?.vehicleId ?? r?.unitId ?? r?.unitId?._id ?? '';
   }
 
   function rentalTitle(r) {
@@ -73,7 +73,7 @@
   function imageSrc(rental) {
     const isFile = typeof window !== 'undefined' && window.location?.protocol === 'file:';
     const root = isFile ? '' : '/';
-    const img = rental?.mainImage || rental?.image;
+    const img = rental?.mainImage || rental?.images?.[0] || rental?.image;
     if (!img) return `${root}img/placeholder.jpg`;
     if (img.startsWith('http')) return img;
     if (img.startsWith('/')) return isFile ? img.slice(1) : img;

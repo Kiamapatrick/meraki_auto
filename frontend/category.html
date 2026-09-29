@@ -159,10 +159,7 @@
     async function loadCategory() {
       const category = new URLSearchParams(window.location.search).get('category');
 
-      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const backendOrigin = (isLocalHost && window.location.port && window.location.port !== '5000')
-        ? 'http://localhost:5000'
-        : window.location.origin;
+      const backendOrigin = 'https://meraki-backend-jdl2.onrender.com';
 
       const titleEl = document.getElementById('catTitle');
       const subEl = document.getElementById('catSub');

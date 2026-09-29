@@ -7,8 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ✅ Backend base URL (adjust if hosted elsewhere)
-  const backendURL = 'http://localhost:5000';
-  const API_BASE_URL = 'http://localhost:5000';
+  const backendURL = 'https://meraki-backend-jdl2.onrender.com';
+  const API_BASE_URL = 'https://meraki-backend-jdl2.onrender.com';
 
   fetchPendingKycs();
 

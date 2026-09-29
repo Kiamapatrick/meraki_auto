@@ -1,7 +1,7 @@
 // reset-password.js — Set new password using token from email link
 document.addEventListener("DOMContentLoaded", () => {
-  const API_BASE = 'http://localhost:5000';
-  const API_BASE_URL = 'http://localhost:5000';
+  const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
+  const API_BASE_URL = 'https://meraki-backend-jdl2.onrender.com';
 
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token");

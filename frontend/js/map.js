@@ -1,6 +1,6 @@
 (function () {
-  const API_BASE = 'http://localhost:5000';
-  const API_BASE_URL = 'http://localhost:5000';
+  const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
+  const API_BASE_URL = 'https://meraki-backend-jdl2.onrender.com';
 
   const KENYA_CENTER = [-1.2921, 36.8219];
   const DEFAULT_ZOOM = 6;
@@ -54,9 +54,10 @@
     const title = isComingSoon ? 'Coming Soon in this Area' : (rental.title || 'Vehicle');
     const areaCity = [rental.area, rental.city].filter(Boolean).join(', ') || (rental.city || rental.area || '');
     const priceLine = !isComingSoon && rental.price != null ? `<p class="map-popup__price">KES ${Number(rental.price).toLocaleString()} / day</p>` : '';
+    const rentalId = rental?.id ?? rental?._id ?? rental?.vehicleId ?? rental?.unitId ?? rental?.unitId?._id ?? '';
     const viewStayHtml = isComingSoon
       ? ''
-      : `<a href="booking.html?id=${encodeURIComponent(rental.id)}" class="map-popup__btn">View Vehicle</a>`;
+      : `<a href="booking.html?id=${encodeURIComponent(rentalId)}" class="map-popup__btn">View Vehicle</a>`;
 
     return `
       <div class="map-popup ${isComingSoon ? 'map-popup--coming-soon' : ''}">

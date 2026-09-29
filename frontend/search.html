@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meraki Auto — Search Results</title>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/index-premium.css" />
+  <style>
+    .search-header {
+      background: var(--bg-primary);
+      padding: 2rem 1rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .search-header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+    .search-header p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+    .index-container {
+      padding: 2rem 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .featured-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+    .index-empty {
+      text-align: center;
+      padding: 4rem 1rem;
+      color: var(--text-secondary);
+    }
+    .empty-label {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .empty-sub {
+      display: block;
+      font-size: 1rem;
+    }
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-subtle);
+    }
+    /* Scroll reveal */
+    .featured-card {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .featured-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <header class="search-header">
+    <h1>Search Results</h1>
+    <p id="searchMeta"></p>
+  </header>
+
+  <main class="index-container">
+    <div id="searchResults" class="featured-grid"></div>
+    <div id="searchEmpty" class="index-empty" style="display:none;">
+      <span class="empty-label">No vehicles match your search.</span>
+      <span class="empty-sub">Try adjusting your search terms or category.</span>
+    </div>
+  </main>
+
+  <footer>
+    Built on Polygon Amoy Testnet · 2025 Meraki Auto
+  </footer>
+
+  <script type="module">
+    import { createFeaturedCard, revealObs } from './js/index.js';
+    const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
+
+    function getQueryParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        q: params.get('q') || '',
+        category: params.get('category') || ''
+      };
+    }
+
+    async function runSearch() {
+      const { q, category } = getQueryParams();
+      const resultsEl = document.getElementById('searchResults');
+      const emptyEl = document.getElementById('searchEmpty');
+      const metaEl = document.getElementById('searchMeta');
+
+      if (!q && !category) {
+        metaEl.textContent = 'No search query provided.';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        // Note: backend only supports 'q'; category filter is optional in UI
+        const url = `${API_BASE}/api/vehicles/search?q=${encodeURIComponent(q)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Search failed');
+        const results = await res.json();
+
+        resultsEl.innerHTML = '';
+        if (!results.length) {
+          emptyEl.style.display = 'block';
+          metaEl.textContent = 'No vehicles match your search.';
+          return;
+        }
+
+        emptyEl.style.display = 'none';
+        metaEl.textContent = `${results.length} ${results.length === 1 ? 'vehicle' : 'vehicles'} found for "${q}"${category ? ' in ' + category : ''}.`;
+
+        results.forEach((r, i) => {
+          const card = createFeaturedCard(r);
+          resultsEl.appendChild(card);
+          setTimeout(() => revealObs.observe(card), i * 80);
+        });
+      } catch (err) {
+        console.error(err);
+        metaEl.textContent = 'Search failed. Please try again.';
+        emptyEl.style.display = 'block';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', runSearch);
+  </script>
+</body>
+</html>

@@ -129,7 +129,7 @@ body.booking-page {
   left: 0;
   right: 0;
   height: 50%;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+  background: none;
   pointer-events: none;
   z-index: 2;
 }

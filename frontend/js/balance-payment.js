@@ -9,7 +9,7 @@
 // ============================================================
 
 // ── CONFIG ──────────────────────────────────────────────────
-const BP_API_BASE = 'http://localhost:5000';
+const BP_API_BASE = 'https://meraki-backend-jdl2.onrender.com';
 
 // M-Pesa hits the same base URL in booking.js (MPESA_BASE)
 const BP_MPESA_BASE = BP_API_BASE;

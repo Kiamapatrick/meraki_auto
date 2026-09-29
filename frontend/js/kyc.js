@@ -2,8 +2,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const video = document.getElementById("camera");
   const canvas = document.getElementById("preview");
   let selfieBlob = null;
-  const API_BASE = 'http://localhost:5000';
-  const API_BASE_URL = 'http://localhost:5000';
+  const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
+  const API_BASE_URL = 'https://meraki-backend-jdl2.onrender.com';
   // Extract userId from URL
   const urlParams = new URLSearchParams(window.location.search);
   const userId = urlParams.get("uid");

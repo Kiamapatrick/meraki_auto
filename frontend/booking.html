@@ -76,8 +76,9 @@
 
   <!-- ═══ 1. HERO — Gallery + Overlay Info ═══ -->
   <section class="booking-hero">
-    <div id="rentalGallery" class="gallery-grid">
-      <!-- JS populates images -->
+    <div id="rentalGallery" class="vehicle-gallery">
+      <img id="mainImage" class="vehicle-gallery__main" src="" alt="Vehicle Image" />
+      <div id="thumbnails" class="vehicle-gallery__thumbs"></div>
     </div>
     <div class="hero-overlay"></div>
     <div class="hero-info">
@@ -85,6 +86,16 @@
       <div class="hero-location"><span>📍</span> <span id="heroLocation">—</span></div>
     </div>
   </section>
+
+  <div id="galleryLightbox" class="gallery-lightbox" aria-hidden="true">
+    <button type="button" id="galleryLightboxClose" class="gallery-lightbox__close" aria-label="Close">×</button>
+    <button type="button" id="galleryLightboxPrev" class="gallery-lightbox__nav gallery-lightbox__nav--prev" aria-label="Previous">‹</button>
+    <button type="button" id="galleryLightboxNext" class="gallery-lightbox__nav gallery-lightbox__nav--next" aria-label="Next">›</button>
+    <div class="gallery-lightbox__inner" role="dialog" aria-modal="true">
+      <img id="galleryLightboxImage" class="gallery-lightbox__image" alt="Vehicle Image" />
+      <div id="galleryLightboxCounter" class="gallery-lightbox__counter"></div>
+    </div>
+  </div>
 
   <div class="booking-content">
     <div class="booking-grid">
@@ -366,15 +377,26 @@
     <div class="alert mb-0">⏱️ Please wait <span id="cooldownTimer">10</span>s</div>
   </div>
 
-  <footer class="booking-footer">© 2025 Meraki Auto — Built on Polygon Amoy Testnet</footer>
+  <footer class="booking-footer"> 2025 Meraki Auto — Built on Polygon Amoy Testnet</footer>
 
   <!-- ═══ SCRIPTS (all unchanged — functionality preserved) ═══ -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Global utility functions accessible from all scripts -->
+  <script>
+    // Get unitId dynamically to handle URL changes without full page reload
+    window.getCurrentUnitId = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const raw = urlParams.get("id");
+      const v = String(raw ?? '').trim();
+      if (!v || v === 'undefined' || v === 'null') return null;
+      return v;
+    };
+  </script>
+
   <script type="module">
-    const urlParams = new URLSearchParams(window.location.search);
-    const unitId = urlParams.get("id");
-    const BASE_URL = 'http://localhost:5000';
+    const BASE_URL = 'https://meraki-backend-jdl2.onrender.com';
 
     window.showLoading = function (show = true) {
       const o = document.getElementById("loadingOverlay");
@@ -408,13 +430,21 @@
     }
 
     async function loadRentalDetails(incomingId) {
-      const id = incomingId || unitId;
-      if (!id) { document.getElementById("rentalTitle").textContent = "Vehicle not specified"; return; }
+      const id = incomingId || window.getCurrentUnitId();
+      if (!id) { 
+        document.getElementById("rentalTitle").textContent = "Vehicle not specified"; 
+        return; 
+      }
       try {
         showLoading(true);
-        const res = await fetch(`${BASE_URL}/vehicles/${id}`);
+        // Cache-bust the request to ensure fresh data
+        const res = await fetch(`${BASE_URL}/vehicles/${id}?_t=${Date.now()}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const unit = await res.json();
+        
+        // Debug: log the unit data to verify it's correct
+        console.log("Loaded vehicle:", { id, name: unit.name, images: unit.images, image: unit.image });
+        
         document.body.dataset.unitId = id;
         document.getElementById("rentalTitle").textContent = unit.name || "Vehicle";
         const desc = document.getElementById("rentalDescription");
@@ -438,27 +468,215 @@
         showStatus("Failed to load rental details", "error");
       } finally { showLoading(false); }
     }
+    
+    // Export to global scope so other scripts can access it
+    window.loadRentalDetails = loadRentalDetails;
+
+    // Gallery state persisted across renders
+    let _galleryState = {
+      currentIndex: 0,
+      isOpen: false,
+      startX: null,
+      normalizedImages: []
+    };
 
     function renderGallery(unit) {
       const gallery = document.getElementById("rentalGallery");
       if (!gallery) return;
-      gallery.innerHTML = "";
-      const images = [];
-      if (unit.image) {
-        if (typeof unit.image === "string" && unit.image.includes(","))
-          unit.image.split(",").map(s => s.trim()).forEach(i => images.push(i));
-        else images.push(unit.image);
+      // Always get fresh references to DOM elements
+      let mainImage = document.getElementById("mainImage");
+      const thumbs = document.getElementById("thumbnails");
+      if (!mainImage || !thumbs) return;
+
+      // Reset gallery state
+      _galleryState.currentIndex = 0;
+      _galleryState.isOpen = false;
+      _galleryState.startX = null;
+
+      // Clear old thumbnails
+      thumbs.innerHTML = "";
+
+      // Reset main image immediately
+      mainImage.src = "";
+      mainImage.onclick = null;
+
+      // DEBUG: show what the backend returned
+      console.log("renderGallery unit.images:", unit.images, "unit.image:", unit.image);
+
+      // Extract and normalize images
+      let images = Array.isArray(unit?.images) ? unit.images.slice() : [];
+
+      // Always ensure the singular `unit.image` values appear first
+      if (unit?.image) {
+        let mainImgs = [];
+        if (typeof unit.image === "string" && unit.image.includes(",")) {
+          mainImgs = unit.image.split(",").map(s => s.trim()).filter(Boolean);
+        } else {
+          mainImgs = [unit.image];
+        }
+        // prepend unique main images
+        images = [...mainImgs, ...images.filter(i => !mainImgs.includes(i))];
       }
+
       if (!images.length) {
-        const img = document.createElement("img");
-        img.src = "/img/placeholder.jpg"; img.alt = "No image"; gallery.appendChild(img); return;
+        mainImage.src = "/img/placeholder.jpg?v=" + Date.now();
+        mainImage.alt = unit?.name || "No image";
+        return;
       }
-      images.forEach(path => {
-        let src = path;
-        if (!path.startsWith("http") && !path.startsWith("/"))
-          src = path.startsWith("img/") ? `/${path}` : `/img/${path}`;
-        const img = document.createElement("img");
-        img.src = src; img.alt = unit.name || "Vehicle image"; gallery.appendChild(img);
+
+      if (!images.length) {
+        mainImage.src = "/img/placeholder.jpg?v=" + Date.now();
+        mainImage.alt = unit?.name || "No image";
+        return;
+      }
+
+      const normalizeSrc = (path) => {
+        if (!path) return "/img/placeholder.jpg";
+        if (path.startsWith("http")) return path;
+        if (path.startsWith("/")) return path;
+        return path.startsWith("img/") ? `/${path}` : `/img/${path}`;
+      };
+
+      const normalizedImages = images.map(src => {
+        const normalized = normalizeSrc(src);
+        // Add cache-buster to force fresh image load
+        return normalized + (normalized.includes('?') ? '&' : '?') + 'v=' + Date.now();
+      });
+      console.log("normalizedImages ->", normalizedImages);
+      _galleryState.normalizedImages = normalizedImages;
+
+      const lb = document.getElementById("galleryLightbox");
+      const lbImg = document.getElementById("galleryLightboxImage");
+      const lbClose = document.getElementById("galleryLightboxClose");
+      const lbPrev = document.getElementById("galleryLightboxPrev");
+      const lbNext = document.getElementById("galleryLightboxNext");
+      const lbCounter = document.getElementById("galleryLightboxCounter");
+
+      const syncNavDisabled = () => {
+        const atStart = _galleryState.currentIndex <= 0;
+        const atEnd = _galleryState.currentIndex >= normalizedImages.length - 1;
+        if (lbPrev) lbPrev.disabled = atStart;
+        if (lbNext) lbNext.disabled = atEnd;
+      };
+
+      const showIndex = (idx) => {
+        if (!lbImg) return;
+        const clamped = Math.max(0, Math.min(idx, normalizedImages.length - 1));
+        _galleryState.currentIndex = clamped;
+        // Image URLs already have cache-buster from normalization
+        lbImg.src = normalizedImages[clamped];
+        if (lbCounter) lbCounter.textContent = `${clamped + 1} / ${normalizedImages.length}`;
+        syncNavDisabled();
+      };
+
+      const openLightbox = (idx) => {
+        if (!lb || !lbImg) return;
+        _galleryState.isOpen = true;
+        lb.classList.add("is-open");
+        lb.setAttribute("aria-hidden", "false");
+        document.body.classList.add("gallery-lightbox-open");
+        showIndex(idx);
+      };
+
+      const closeLightbox = () => {
+        if (!lb) return;
+        _galleryState.isOpen = false;
+        lb.classList.remove("is-open");
+        lb.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("gallery-lightbox-open");
+      };
+
+      const goPrev = () => {
+        if (!normalizedImages.length) return;
+        showIndex(_galleryState.currentIndex - 1);
+      };
+
+      const goNext = () => {
+        if (!normalizedImages.length) return;
+        showIndex(_galleryState.currentIndex + 1);
+      };
+
+      const onKeyDown = (e) => {
+        if (!_galleryState.isOpen) return;
+        if (e.key === "Escape") closeLightbox();
+        if (e.key === "ArrowLeft") goPrev();
+        if (e.key === "ArrowRight") goNext();
+      };
+
+      // Replace global key handler
+      if (window._galleryLightboxKeyHandler) {
+        document.removeEventListener("keydown", window._galleryLightboxKeyHandler);
+      }
+      window._galleryLightboxKeyHandler = onKeyDown;
+      document.addEventListener("keydown", window._galleryLightboxKeyHandler);
+
+      // Reset lightbox button handlers
+      if (lbClose) {
+        lbClose.onclick = (e) => {
+          e.preventDefault();
+          closeLightbox();
+        };
+      }
+      if (lbPrev) {
+        lbPrev.onclick = (e) => {
+          e.preventDefault();
+          goPrev();
+        };
+      }
+      if (lbNext) {
+        lbNext.onclick = (e) => {
+          e.preventDefault();
+          goNext();
+        };
+      }
+
+      if (lb) {
+        lb.onclick = (e) => {
+          if (e.target === lb) closeLightbox();
+        };
+      }
+
+      // Touch handlers
+      if (lbImg) {
+        lbImg.ontouchstart = (e) => {
+          _galleryState.startX = e.touches && e.touches[0] ? e.touches[0].clientX : null;
+        };
+        lbImg.ontouchend = (e) => {
+          if (_galleryState.startX == null) return;
+          const endX = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : null;
+          if (endX == null) return;
+          const dx = endX - _galleryState.startX;
+          _galleryState.startX = null;
+          if (Math.abs(dx) < 40) return;
+          if (dx > 0) goPrev();
+          else goNext();
+        };
+      }
+
+      // Set main image with cache-buster already in URL
+      mainImage.src = normalizedImages[0];
+      mainImage.alt = unit?.name || "Vehicle image";
+      mainImage.style.cursor = "pointer";
+      mainImage.onclick = (e) => {
+        e.preventDefault();
+        openLightbox(_galleryState.currentIndex);
+      };
+
+      // Create thumbnails
+      normalizedImages.forEach((src, idx) => {
+        const t = document.createElement("img");
+        t.className = "vehicle-gallery__thumb";
+        t.src = src;
+        t.alt = unit?.name || "Vehicle thumbnail";
+        t.loading = "lazy";
+        t.addEventListener("click", (e) => {
+          e.preventDefault();
+          _galleryState.currentIndex = idx;
+          const currentMain = document.getElementById("mainImage");
+          currentMain.src = src;
+          openLightbox(idx);
+        });
+        thumbs.appendChild(t);
       });
     }
 
@@ -545,6 +763,27 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       loadRentalDetails();
+      
+      // Watch for URL changes (e.g., when navigating back/forward or via history API)
+      window.addEventListener("popstate", () => {
+        const newId = window.getCurrentUnitId();
+        if (newId && document.body.dataset.unitId !== newId) {
+          console.log("URL changed, reloading vehicle data");
+          loadRentalDetails();
+        }
+      });
+      
+      // Also watch for visibility changes to reload if tab was in background
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          const newId = window.getCurrentUnitId();
+          if (newId && document.body.dataset.unitId !== newId) {
+            console.log("Tab became visible with different vehicle ID, reloading");
+            loadRentalDetails();
+          }
+        }
+      });
+      
       const paymentSelect = document.getElementById("paymentMethod");
       const mpesaW = document.getElementById("mpesaFieldWrapper");
       const emailW = document.getElementById("emailFieldWrapper");
@@ -595,124 +834,149 @@
 
     // ── REVIEWS MODULE ──
     document.addEventListener("DOMContentLoaded", () => {
-      const API_BASE = 'http://localhost:5000';
-      const urlParams = new URLSearchParams(window.location.search);
-      const unitId = urlParams.get("id");
-      const token = localStorage.getItem("userToken") || localStorage.getItem("token");
-      if (!unitId) return;
+      const API_BASE = 'https://meraki-backend-jdl2.onrender.com';
+      
+      function loadReviewsModule() {
+        const unitId = window.getCurrentUnitId();
+        const token = localStorage.getItem("userToken") || localStorage.getItem("token");
+        if (!unitId) return;
 
-      const reviewsList = document.getElementById("reviewsList");
-      const reviewsEmpty = document.getElementById("reviewsEmpty");
-      const avgBadge = document.getElementById("avgBadge");
-      const avgRating = document.getElementById("avgRating");
-      const reviewCount = document.getElementById("reviewCount");
-      const formWrapper = document.getElementById("reviewFormWrapper");
-      const reviewForm = document.getElementById("reviewForm");
-      const statusEl = document.getElementById("reviewStatus");
-      const ratingInput = document.getElementById("selectedRating");
-      const commentInput = document.getElementById("reviewComment");
-      const charCount = document.getElementById("charCount");
-      const submitBtn = document.getElementById("submitReviewBtn");
-      const starSelector = document.getElementById("starSelector");
-      const stars = starSelector.querySelectorAll(".star-btn");
-      const viewAllBtn = document.getElementById("viewAllReviewsBtn");
-      const modalList = document.getElementById("modalReviewsList");
+        const reviewsList = document.getElementById("reviewsList");
+        const reviewsEmpty = document.getElementById("reviewsEmpty");
+        const avgBadge = document.getElementById("avgBadge");
+        const avgRating = document.getElementById("avgRating");
+        const reviewCount = document.getElementById("reviewCount");
+        const formWrapper = document.getElementById("reviewFormWrapper");
+        const reviewForm = document.getElementById("reviewForm");
+        const statusEl = document.getElementById("reviewStatus");
+        const ratingInput = document.getElementById("selectedRating");
+        const commentInput = document.getElementById("reviewComment");
+        const charCount = document.getElementById("charCount");
+        const submitBtn = document.getElementById("submitReviewBtn");
+        const starSelector = document.getElementById("starSelector");
+        const stars = starSelector.querySelectorAll(".star-btn");
+        const viewAllBtn = document.getElementById("viewAllReviewsBtn");
+        const modalList = document.getElementById("modalReviewsList");
 
-      if (token) formWrapper.style.display = "block";
+        // Clear previous reviews
+        reviewsList.innerHTML = '<div class="reviews-empty" id="reviewsEmpty"><span class="empty-icon">💬</span><p>No reviews yet. Be the first to share your experience!</p></div>';
+        modalList.innerHTML = "";
+        
+        if (token) formWrapper.style.display = "block";
 
-      stars.forEach(star => {
-        star.addEventListener("mouseenter", () => {
-          const val = +star.dataset.value;
-          stars.forEach(s => s.classList.toggle("hovered", +s.dataset.value <= val));
+        const starClickHandlers = [];
+        stars.forEach((star, idx) => {
+          star.removeEventListener("mouseenter", starClickHandlers[idx]);
+          star.removeEventListener("click", starClickHandlers[idx]);
         });
-      });
-      starSelector.addEventListener("mouseleave", () => stars.forEach(s => s.classList.remove("hovered")));
-      stars.forEach(star => {
-        star.addEventListener("click", () => {
-          const val = +star.dataset.value;
-          ratingInput.value = val;
-          stars.forEach(s => s.classList.toggle("selected", +s.dataset.value <= val));
-        });
-      });
-      commentInput.addEventListener("input", () => { charCount.textContent = `${commentInput.value.length}/500`; });
 
-      async function loadReviews() {
-        try {
-          const res = await fetch(`${API_BASE}/api/reviews/${unitId}`);
-          const data = await res.json();
-          if (!data.success) return;
-          if (data.count > 0) {
+        stars.forEach(star => {
+          star.addEventListener("mouseenter", () => {
+            const val = +star.dataset.value;
+            stars.forEach(s => s.classList.toggle("hovered", +s.dataset.value <= val));
+          });
+        });
+        starSelector.addEventListener("mouseleave", () => stars.forEach(s => s.classList.remove("hovered")));
+        stars.forEach(star => {
+          star.addEventListener("click", () => {
+            const val = +star.dataset.value;
+            ratingInput.value = val;
+            stars.forEach(s => s.classList.toggle("selected", +s.dataset.value <= val));
+          });
+        });
+        commentInput.addEventListener("input", () => { charCount.textContent = `${commentInput.value.length}/500`; });
+
+        async function loadReviews() {
+          try {
+            const res = await fetch(`${API_BASE}/api/reviews/${unitId}?_t=${Date.now()}`);
+            const data = await res.json();
+            if (!data.success) return;
+            if (data.count > 0) {
+              avgBadge.style.display = "inline-flex";
+              avgRating.textContent = data.average;
+              reviewCount.textContent = `(${data.count})`;
+              const sr = document.getElementById("sidebarRating");
+              const hr = document.getElementById("hlRating");
+              if (sr) sr.textContent = data.average;
+              if (hr) hr.textContent = `${data.average} ★`;
+            }
+            if (data.reviews.length === 0) { reviewsEmpty.style.display = "flex"; return; }
+            reviewsEmpty.style.display = "none";
+            if (data.reviews.length > 3) viewAllBtn.style.display = "";
+            if (token) {
+              try {
+                const user = JSON.parse(localStorage.getItem("loggedInUser"));
+                if (user) {
+                  const userId = user.id || user._id;
+                  if (data.reviews.some(r => r.userId === userId)) formWrapper.style.display = "none";
+                }
+              } catch (e) { }
+            }
+            data.reviews.forEach(review => {
+              const card = createReviewCard(review);
+              reviewsList.appendChild(card);
+              if (modalList) modalList.appendChild(createReviewCard(review));
+            });
+          } catch (err) { console.error("Failed to load reviews:", err); }
+        }
+
+        function createReviewCard(review) {
+          const card = document.createElement("div");
+          card.className = "review-card";
+          const starsHtml = renderStars(review.rating);
+          const date = new Date(review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+          card.innerHTML = `<div class="review-card-header"><div class="reviewer-info"><div class="reviewer-avatar">${(review.userName || "?")[0].toUpperCase()}</div><div><div class="reviewer-name">${escapeHtml(review.userName)}</div><div class="review-date">${date}</div></div></div><div class="review-stars">${starsHtml}</div></div>${review.comment ? `<p class="review-text">${escapeHtml(review.comment)}</p>` : ""}`;
+          return card;
+        }
+        function renderStars(r) { let h = ""; for (let i = 1; i <= 5; i++) h += `<span class="star-icon ${i <= r ? "filled" : ""}">★</span>`; return h; }
+        function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+        reviewForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const rating = +ratingInput.value, comment = commentInput.value.trim();
+          if (!rating || rating < 1 || rating > 5) { showReviewStatus("Please select a star rating.", "error"); return; }
+          submitBtn.disabled = true; submitBtn.classList.add("loading");
+          try {
+            const res = await fetch(`${API_BASE}/api/reviews/${unitId}`, {
+              method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ rating, comment })
+            });
+            const data = await res.json();
+            if (!res.ok) { showReviewStatus(data.message || "Failed to submit review.", "error"); submitBtn.disabled = false; submitBtn.classList.remove("loading"); return; }
+            showReviewStatus("Review submitted!", "success");
+            formWrapper.style.display = "none";
+            reviewsEmpty.style.display = "none";
+            const card = createReviewCard(data.review);
+            reviewsList.prepend(card);
+            const cc = +(reviewCount.textContent.replace(/[()]/g, "") || 0);
+            const ca = +(avgRating.textContent || 0);
+            const nc = cc + 1;
+            const na = ((ca * cc + rating) / nc).toFixed(1);
             avgBadge.style.display = "inline-flex";
-            avgRating.textContent = data.average;
-            reviewCount.textContent = `(${data.count})`;
-            const sr = document.getElementById("sidebarRating");
-            const hr = document.getElementById("hlRating");
-            if (sr) sr.textContent = data.average;
-            if (hr) hr.textContent = `${data.average} ★`;
-          }
-          if (data.reviews.length === 0) { reviewsEmpty.style.display = "flex"; return; }
-          reviewsEmpty.style.display = "none";
-          if (data.reviews.length > 3) viewAllBtn.style.display = "";
-          if (token) {
-            try {
-              const user = JSON.parse(localStorage.getItem("loggedInUser"));
-              if (user) {
-                const userId = user.id || user._id;
-                if (data.reviews.some(r => r.userId === userId)) formWrapper.style.display = "none";
-              }
-            } catch (e) { }
-          }
-          data.reviews.forEach(review => {
-            const card = createReviewCard(review);
-            reviewsList.appendChild(card);
-            if (modalList) modalList.appendChild(createReviewCard(review));
-          });
-        } catch (err) { console.error("Failed to load reviews:", err); }
-      }
+            avgRating.textContent = na;
+            reviewCount.textContent = `(${nc})`;
+          } catch (err) { console.error("Submit review error:", err); showReviewStatus("Something went wrong.", "error"); submitBtn.disabled = false; submitBtn.classList.remove("loading"); }
+        });
 
-      function createReviewCard(review) {
-        const card = document.createElement("div");
-        card.className = "review-card";
-        const starsHtml = renderStars(review.rating);
-        const date = new Date(review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-        card.innerHTML = `<div class="review-card-header"><div class="reviewer-info"><div class="reviewer-avatar">${(review.userName || "?")[0].toUpperCase()}</div><div><div class="reviewer-name">${escapeHtml(review.userName)}</div><div class="review-date">${date}</div></div></div><div class="review-stars">${starsHtml}</div></div>${review.comment ? `<p class="review-text">${escapeHtml(review.comment)}</p>` : ""}`;
-        return card;
+        function showReviewStatus(msg, type) {
+          statusEl.textContent = msg; statusEl.className = `review-status ${type}`;
+          setTimeout(() => { statusEl.className = "review-status"; statusEl.textContent = ""; }, 4000);
+        }
+        loadReviews();
       }
-      function renderStars(r) { let h = ""; for (let i = 1; i <= 5; i++) h += `<span class="star-icon ${i <= r ? "filled" : ""}">★</span>`; return h; }
-      function escapeHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
-
-      reviewForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const rating = +ratingInput.value, comment = commentInput.value.trim();
-        if (!rating || rating < 1 || rating > 5) { showReviewStatus("Please select a star rating.", "error"); return; }
-        submitBtn.disabled = true; submitBtn.classList.add("loading");
-        try {
-          const res = await fetch(`${API_BASE}/api/reviews/${unitId}`, {
-            method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ rating, comment })
-          });
-          const data = await res.json();
-          if (!res.ok) { showReviewStatus(data.message || "Failed to submit review.", "error"); submitBtn.disabled = false; submitBtn.classList.remove("loading"); return; }
-          showReviewStatus("Review submitted!", "success");
-          formWrapper.style.display = "none";
-          reviewsEmpty.style.display = "none";
-          const card = createReviewCard(data.review);
-          reviewsList.prepend(card);
-          const cc = +(reviewCount.textContent.replace(/[()]/g, "") || 0);
-          const ca = +(avgRating.textContent || 0);
-          const nc = cc + 1;
-          const na = ((ca * cc + rating) / nc).toFixed(1);
-          avgBadge.style.display = "inline-flex";
-          avgRating.textContent = na;
-          reviewCount.textContent = `(${nc})`;
-        } catch (err) { console.error("Submit review error:", err); showReviewStatus("Something went wrong.", "error"); submitBtn.disabled = false; submitBtn.classList.remove("loading"); }
-      });
-
-      function showReviewStatus(msg, type) {
-        statusEl.textContent = msg; statusEl.className = `review-status ${type}`;
-        setTimeout(() => { statusEl.className = "review-status"; statusEl.textContent = ""; }, 4000);
+      
+      // Load reviews on initial page load
+      loadReviewsModule();
+      
+      // Also reload reviews when vehicle ID changes
+      const originalLoadRentalDetails = window.loadRentalDetails;
+      if (originalLoadRentalDetails) {
+        window.loadRentalDetails = function(incomingId) {
+          originalLoadRentalDetails.call(this, incomingId);
+          // Re-initialize reviews after vehicle data loads
+          setTimeout(() => loadReviewsModule(), 100);
+        };
       }
-      loadReviews();
     });
   </script>
 </body>
