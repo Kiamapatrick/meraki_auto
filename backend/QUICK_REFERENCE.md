@@ -112,7 +112,7 @@ POST   /auth/reset-password     Password reset
 
 ### Create Vehicle
 ```bash
-curl -X POST http://localhost:5000/vehicles \
+curl -X POST https://meraki-backend-jdl2.onrender.com/vehicles \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer TOKEN" \
   -d '{
@@ -127,7 +127,7 @@ curl -X POST http://localhost:5000/vehicles \
 
 ### Create Booking
 ```bash
-curl -X POST http://localhost:5000/bookings \
+curl -X POST https://meraki-backend-jdl2.onrender.com/bookings \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer TOKEN" \
   -d '{
@@ -141,7 +141,7 @@ curl -X POST http://localhost:5000/bookings \
 
 ### Get My Bookings
 ```bash
-curl -X GET http://localhost:5000/bookings/my \
+curl -X GET https://meraki-backend-jdl2.onrender.com/bookings/my \
   -H "Authorization: Bearer TOKEN"
 ```
 

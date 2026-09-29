@@ -18,10 +18,39 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch vehicles" });
   }
 });
+// GET /api/vehicles/search
+router.get("/search", async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || typeof q !== "string" || q.trim().length === 0) {
+      return res.status(400).json({ error: "Query parameter 'q' required" });
+    }
+
+    const regex = new RegExp(q.trim(), "i");
+    const vehicles = await Vehicle.find({
+      status: "approved",
+      $or: [
+        { name: { $regex: regex } },
+        { city: { $regex: regex } },
+        { area: { $regex: regex } },
+        { category: { $regex: regex } },
+      ],
+    }).lean();
+
+    res.json(vehicles);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Search failed" });
+  }
+});
 
 // GET single vehicle
 router.get("/:id", async (req, res) => {
   try {
+    // Skip if :id is literally "search" to avoid ObjectId cast error
+    if (req.params.id === 'search') {
+      return res.status(404).json({ error: "Not found" });
+    }
     const vehicle = await Vehicle.findById(req.params.id);
     if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
     res.json(vehicle);
@@ -38,6 +67,7 @@ router.post("/", async (req, res) => {
       name,
       description,
       image,
+      images,
       dailyPrice,
       deposit,
       ownerId,
@@ -64,10 +94,19 @@ router.post("/", async (req, res) => {
         ? features.split(",").map(f => f.trim()).filter(Boolean)
         : [];
 
+    const parsedImages = Array.isArray(images)
+      ? images.map(i => String(i).trim()).filter(Boolean)
+      : typeof images === "string"
+        ? images.split(",").map(i => i.trim()).filter(Boolean)
+        : [];
+
+    const primaryImage = image || parsedImages[0];
+
     const vehicle = new Vehicle({
       name,
       description,
-      image,
+      image: primaryImage,
+      images: parsedImages,
       dailyPrice,
       deposit,
       ownerId,
@@ -105,6 +144,18 @@ router.put("/:id", async (req, res) => {
           ? updates.features.split(",").map(f => f.trim()).filter(Boolean)
           : [];
     }
+
+    if ("images" in updates) {
+      updates.images = Array.isArray(updates.images)
+        ? updates.images.map(i => String(i).trim()).filter(Boolean)
+        : typeof updates.images === "string"
+          ? updates.images.split(",").map(i => i.trim()).filter(Boolean)
+          : [];
+
+      if (!updates.image && updates.images.length) {
+        updates.image = updates.images[0];
+      }
+    }
     if (updates.city !== undefined) updates.city = updates.city?.trim() || null;
     if (updates.area !== undefined) updates.area = updates.area?.trim() || null;
     if (updates.country !== undefined) updates.country = updates.country?.trim() || "Kenya";
@@ -140,6 +191,7 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: err.message || "Server error" });
   }
 });
+
 
 export default router;
 

@@ -844,8 +844,8 @@ function createBookingCard(b) {
 
     const balanceAmount = (b.fullAmount || b.totalPrice || 0) - FIXED_DEPOSIT;
     const paymentMethod = b.paymentMethod || 'crypto';
-    const paymentMethodLabel = paymentMethod === 'mpesa' ? 'M-Pesa'
-      : (paymentMethod === 'visa' || paymentMethod === 'paystack') ? 'Paystack'
+    const paymentMethodLabel = paymentMethod === 'paystack' ? 'Paystack'
+      : paymentMethod === 'nowpayments' ? 'USDT'
         : 'Crypto';
 
     actionHTML = `
@@ -1185,10 +1185,11 @@ async function handleBalancePayment(bookingId, unitId, balanceAmount, guestPhone
   // ✅ ROUTE BASED ON PAYMENT METHOD
   if (paymentMethod === 'crypto') {
     return await handleCryptoBalancePayment(bookingId, unitId, balanceAmount, guestPhone);
-  } else if (paymentMethod === 'mpesa') {
-    return await handleMpesaBalancePayment(bookingId, unitId, balanceAmount, guestPhone);
-  } else if (paymentMethod === 'visa' || paymentMethod === 'paystack') { // ADD THIS
+  } else if (paymentMethod === 'paystack') {
+    // Both M-Pesa and Card route through Paystack
     return await handlePaystackBalancePayment(bookingId, unitId, balanceAmount, guestPhone);
+  } else if (paymentMethod === 'nowpayments') {
+    return await handleNowPaymentsBalancePayment(bookingId, unitId, balanceAmount, guestPhone);
   } else {
     showStatus(`Unsupported payment method: ${paymentMethod}`, "error");
     return false;
@@ -1340,6 +1341,54 @@ async function handlePaystackBalancePayment(bookingId, unitId, balanceAmount, gu
   } catch (err) {
     console.error("❌ Paystack balance payment error:", err);
     showStatus(err.message || "Paystack balance payment failed", "error");
+    return false;
+  }
+}
+
+async function handleNowPaymentsBalancePayment(bookingId, unitId, balanceAmount, guestPhone) {
+  try {
+    showStatus("Initializing NowPayments (USDT) balance payment...", "info");
+
+    const email = document.getElementById("guestEmail")?.value ||
+      `user${Date.now()}@merakiauto.com`;
+
+    const res = await fetch(`${API_BASE}/api/payments/nowpayments/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({
+        backendBookingId: bookingId,
+        amount: balanceAmount,
+        type: 'balance',
+        email: email
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to initialize NowPayments balance payment");
+    }
+
+    showStatus("Redirecting to NowPayments for balance payment...", "success");
+
+    // Store bookingId in localStorage before redirect
+    localStorage.setItem('pendingNowPaymentsBalance', JSON.stringify({
+      bookingId,
+      unitId,
+      timestamp: Date.now()
+    }));
+
+    // Redirect to NowPayments
+    window.location.href = data.invoiceUrl;
+
+    return true;
+
+  } catch (err) {
+    console.error("❌ NowPayments balance payment error:", err);
+    showStatus(err.message || "NowPayments balance payment failed", "error");
     return false;
   }
 }
@@ -1509,6 +1558,60 @@ async function pollMpesaPaymentStatus(bookingId) {
   return null;
 }
 // ===============================
+// NOWPAYMENTS PAYMENT (USDT/Crypto via NowPayments)
+// ===============================
+async function handleNowPaymentsPayment(bookingData) {
+  try {
+    showStatus("Initializing NowPayments (USDT)...", "info");
+
+    const res = await fetch(`${API_BASE}/api/payments/nowpayments/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({
+        unitId: bookingData.unitId,
+        startDate: bookingData.startDate,
+        endDate: bookingData.endDate,
+        guestPhone: bookingData.guestPhone,
+        guestEmail: bookingData.guestEmail,
+        amount: paymentState.amountToPayNow,
+        paymentType: 'deposit', // Always deposit on first payment
+        backendBookingId: bookingData.bookingId
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to initialize NowPayments payment");
+    }
+
+    showStatus("Redirecting to NowPayments checkout...", "success");
+
+    // Store bookingId in localStorage before redirect
+    localStorage.setItem('pendingNowPaymentsBooking', JSON.stringify({
+      bookingId: bookingData.bookingId,
+      unitId: bookingData.unitId,
+      timestamp: Date.now()
+    }));
+
+    console.log('💾 Stored pending NowPayments booking:', bookingData.bookingId);
+
+    // Redirect to NowPayments checkout
+    window.location.href = data.invoiceUrl;
+
+    return { pending: true, invoiceId: data.invoiceId };
+
+  } catch (err) {
+    console.error("NowPayments error:", err);
+    showStatus(err.message || "NowPayments payment error", "error");
+    return null;
+  }
+}
+
+// ===============================
 // PAYSTACK PAYMENT
 // ===============================
 async function handlePaystackPayment(bookingData) {
@@ -1615,6 +1718,18 @@ async function createBooking() {
     return;
   }
 
+  // Get email for Paystack/NowPayments
+  const guestEmailInput = document.getElementById('guestEmail')?.value;
+  if ((paymentMethod === 'paystack' || paymentMethod === 'nowpayments') && !guestEmailInput) {
+    showStatus('Please enter email for receipt', 'error');
+    showLoading(false);
+    if (bookBtn) {
+      bookBtn.disabled = false;
+      bookBtn.textContent = `Pay KES ${paymentState.amountToPayNow.toFixed(2)}`;
+    }
+    return;
+  }
+
   const bookBtn = document.getElementById('bookBtn');
   if (bookBtn) {
     bookBtn.disabled = true;
@@ -1642,7 +1757,8 @@ async function createBooking() {
 
     const walletAddr = getWalletAddress();
     const walletSuffix = walletAddr ? walletAddr.slice(2, 8) : 'offchain';
-    const bookingId = `booking_${Date.now()}_${normalizedUnitId}_${walletSuffix}_${Math.random().toString(36).slice(2, 10)}`; const bookingData = {
+    const bookingId = `booking_${Date.now()}_${normalizedUnitId}_${walletSuffix}_${Math.random().toString(36).slice(2, 10)}`;
+    const bookingData = {
       bookingId,
       vehicleId: normalizedUnitId,
       startDate: startDateISO,
@@ -1653,7 +1769,9 @@ async function createBooking() {
       depositAmount: paymentState.depositAmount,
       balanceAmount: paymentState.balanceAmount,
       paymentType: paymentState.paymentType,
-      nights: paymentState.nights
+      nights: paymentState.nights,
+      guestPhone: guestPhoneInput,
+      guestEmail: guestEmailInput
     };
 
     console.log('📅 Booking data:', bookingData);
@@ -1664,33 +1782,30 @@ async function createBooking() {
     // ✅ Route to appropriate payment handler
     if (paymentMethod === 'crypto') {
       result = await handleCryptoPayment(bookingData, paymentState.amountToPayNow);
-    } else if (paymentMethod === 'mpesa') {
-      result = await handleMpesaPayment(bookingData);
-    } else if (paymentMethod === 'visa' || paymentMethod === 'paystack') { // ADD THIS
+    } else if (paymentMethod === 'paystack') {
+      // Both M-Pesa and Card route through Paystack
       result = await handlePaystackPayment(bookingData);
+    } else if (paymentMethod === 'nowpayments') {
+      result = await handleNowPaymentsPayment(bookingData);
     } else {
       showStatus('Payment method not yet implemented', 'error');
       return;
     }
 
-    // MODIFY the success handling for Paystack redirects:
+    // MODIFY the success handling for Paystack/NowPayments redirects:
     if (result && (result.success || result.pending)) {
-      if (result.pending || result.authorization_url) {
-        showStatus('Redirecting to Paystack...', 'info');
+      if (result.pending || result.authorization_url || result.invoiceUrl) {
+        const redirectUrl = result.authorization_url || result.invoiceUrl;
+        const providerName = paymentMethod === 'nowpayments' ? 'NowPayments' : 'Paystack';
+        
+        showStatus(`Redirecting to ${providerName}...`, 'info');
 
-        // ✅ Use the callback URL from backend (already has real reference)
-        const callbackUrl = result.callbackUrl ||
-          `${window.location.origin}/booking.html?id=${normalizedUnitId}&bookingId=${bookingData.bookingId}`;
-
-        // ✅ Paystack will add their reference automatically
-        const paystackUrl = result.authorization_url;
-
-        console.log("🔗 Redirecting to Paystack");
+        console.log(`🔗 Redirecting to ${providerName}`);
         console.log("📝 Booking ID for callback:", bookingData.bookingId);
 
-        // ✅ Paystack will handle the redirect back with their reference
+        // ✅ Redirect to payment provider
         setTimeout(() => {
-          window.location.href = paystackUrl;
+          window.location.href = redirectUrl;
         }, 1000);
 
         return;
@@ -1926,6 +2041,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (bookBtn) {
     bookBtn.addEventListener('click', createBooking);
   }
+  
+  // Check for Paystack callback
   const savedCallback = localStorage.getItem('paystackCallback');
   if (savedCallback) {
     try {
@@ -1943,6 +2060,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } else {
     await checkPaystackCallback();
+  }
+
+  // Check for NowPayments callback
+  const savedNowPaymentsCallback = localStorage.getItem('nowpaymentsCallback');
+  if (savedNowPaymentsCallback) {
+    try {
+      const { bookingId } = JSON.parse(savedNowPaymentsCallback);
+      const unitIdFromUrl = normalizeUnitId(new URLSearchParams(window.location.search).get('id'));
+      const base = window.location.pathname;
+      const newUrl = unitIdFromUrl
+        ? `${base}?id=${unitIdFromUrl}&bookingId=${bookingId}`
+        : `${base}?bookingId=${bookingId}`;
+      window.history.replaceState({}, '', newUrl);
+      await checkNowPaymentsCallback();
+    } catch (err) {
+      console.error('Failed to process saved NowPayments callback:', err);
+      localStorage.removeItem('nowpaymentsCallback');
+    }
+  } else {
+    await checkNowPaymentsCallback();
   }
 });
 async function checkPaystackCallback() {
@@ -2121,6 +2258,198 @@ async function checkPaystackCallback() {
 }
 
 
+// ===============================
+// NOWPAYMENTS CALLBACK HANDLER
+// ===============================
+async function checkNowPaymentsCallback() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const bookingId = urlParams.get('bookingId');
+  const paymentStatus = urlParams.get('payment'); // 'success' or 'cancel'
+
+  // Check localStorage if no bookingId in URL
+  let finalBookingId = bookingId;
+  if (!finalBookingId) {
+    const pending = localStorage.getItem('pendingNowPaymentsBooking');
+    if (pending) {
+      try {
+        const data = JSON.parse(pending);
+        finalBookingId = data.bookingId;
+        console.log('📦 Retrieved NowPayments bookingId from localStorage:', finalBookingId);
+
+        // Clear old pending bookings (>10 minutes)
+        if (Date.now() - data.timestamp > 10 * 60 * 1000) {
+          localStorage.removeItem('pendingNowPaymentsBooking');
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to parse pending NowPayments booking:', err);
+        localStorage.removeItem('pendingNowPaymentsBooking');
+        return;
+      }
+    } else {
+      // Not a NowPayments callback
+      return;
+    }
+  }
+
+  console.log('📥 NowPayments callback detected:', {
+    bookingId: finalBookingId || 'MISSING',
+    paymentStatus: paymentStatus || 'none',
+    fullURL: window.location.href
+  });
+
+  // If user cancelled payment
+  if (paymentStatus === 'cancel') {
+    showStatus('Payment was cancelled. You can try again.', 'info');
+    localStorage.removeItem('pendingNowPaymentsBooking');
+    const unitIdFromUrl = normalizeUnitId(urlParams.get('id'));
+    if (unitIdFromUrl) {
+      window.history.replaceState({}, '', window.location.pathname + `?id=${unitIdFromUrl}`);
+    }
+    return;
+  }
+
+  // ✅ Check if user is logged in
+  const token = getToken();
+  if (!token) {
+    console.warn('⚠️ User not logged in after NowPayments redirect');
+    showStatus('Payment received! Please log in to view your booking.', 'success');
+
+    // Save callback params to localStorage for retry after login
+    localStorage.setItem('nowpaymentsCallback', JSON.stringify({ bookingId: finalBookingId }));
+
+    // Clean URL
+    const unitIdFromUrl = normalizeUnitId(urlParams.get('id'));
+    if (unitIdFromUrl) {
+      window.history.replaceState({}, '', window.location.pathname + `?id=${unitIdFromUrl}`);
+    }
+
+    // Redirect to login after 3 seconds
+    const redirectBase = window.location.pathname + (unitIdFromUrl ? '?id=' + unitIdFromUrl : '');
+    setTimeout(() => {
+      window.location.href = `login.html?redirect=${encodeURIComponent(redirectBase)}`;
+    }, 3000);
+
+    return;
+  }
+
+  showStatus('Verifying payment...', 'info');
+  showLoading(true);
+
+  try {
+    // Poll for payment confirmation
+    let attempts = 0;
+    const maxAttempts = 20;
+    let bookingFound = false;
+
+    while (attempts < maxAttempts && !bookingFound) {
+      await new Promise(r => setTimeout(r, 2000));
+      attempts++;
+
+      try {
+        const statusRes = await fetch(`${API_BASE}/api/book/my`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        // ✅ Handle 401 specifically
+        if (statusRes.status === 401) {
+          console.error('❌ Auth token expired/invalid');
+          showStatus('Session expired. Please log in again.', 'error');
+
+          // Save callback for retry
+          localStorage.setItem('nowpaymentsCallback', JSON.stringify({ bookingId: finalBookingId }));
+
+          const unitIdFromUrl = normalizeUnitId(urlParams.get('id'));
+          const redirectBase = window.location.pathname + (unitIdFromUrl ? '?id=' + unitIdFromUrl : '');
+          setTimeout(() => {
+            localStorage.removeItem(TOKEN_KEY);
+            window.location.href = `login.html?redirect=${encodeURIComponent(redirectBase)}`;
+          }, 2000);
+
+          break;
+        }
+
+        if (!statusRes.ok) {
+          console.warn(`⚠️ Poll attempt ${attempts} failed: HTTP ${statusRes.status}`);
+          continue;
+        }
+
+        const data = await statusRes.json();
+
+        console.log(`📝 NowPayments poll attempt ${attempts}:`, {
+          searchingFor: finalBookingId,
+          foundBookings: data.bookings?.length || 0,
+          bookingIds: data.bookings?.map(b => b.bookingId) || []
+        });
+
+        const booking = data.bookings?.find(b => b.bookingId === finalBookingId);
+
+        if (booking) {
+          console.log(` Poll attempt ${attempts}: FOUND booking:`, {
+            bookingId: booking.bookingId,
+            depositPaid: booking.depositPaid,
+            balancePaid: booking.balancePaid,
+            paymentStatus: booking.paymentStatus,
+            nowInvoiceId: booking.nowInvoiceId || 'none'
+          });
+
+          // ✅ Check if deposit is paid (webhook sets this)
+          if (booking.depositPaid === true) {
+            bookingFound = true;
+
+            if (booking.balancePaid === true) {
+              showStatus(' Full payment confirmed! Booking complete.', 'success');
+            } else {
+              showStatus(' Deposit confirmed! Booking reserved.', 'success');
+            }
+
+            // ✅ Refresh UI
+            await loadCalendar();
+            await loadUserBookings();
+
+            // ✅ Clean URL and remove callback data from localStorage
+            localStorage.removeItem('nowpaymentsCallback');
+            localStorage.removeItem('pendingNowPaymentsBooking');
+            const unitIdFromUrl = normalizeUnitId(urlParams.get('id'));
+            if (unitIdFromUrl) {
+              window.history.replaceState({}, '', window.location.pathname + `?id=${unitIdFromUrl}`);
+            } else {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+
+            break;
+          } else {
+            console.log(`⏳ Poll attempt ${attempts}: Payment not yet confirmed`);
+          }
+        } else {
+          console.log(`⏳ Poll attempt ${attempts}: Booking not found yet`);
+        }
+
+      } catch (fetchErr) {
+        console.warn(`⚠️ NowPayments poll attempt ${attempts} failed:`, fetchErr.message);
+        continue;
+      }
+    }
+
+    if (!bookingFound) {
+      showStatus('Payment verification timeout. Please check your bookings.', 'error');
+    }
+
+  } catch (err) {
+    console.error('NowPayments payment verification error:', err);
+    showStatus('Could not verify payment. Please check your bookings.', 'error');
+  } finally {
+    showLoading(false);
+  }
+}
+
+
+// ===============================
+// UTILITY: Check if user is logged in
+// ===============================
 function isUserLoggedIn() {
   const token = getToken();
   if (!token) return false;

@@ -37,8 +37,12 @@ import mpesaRoutes from "./routes/mpesaRoutes.js";
 //import testATRoutes from "./routes/testAt.js"
 import diditRoutes from "./routes/diditRoutes.js";
 import paystackRoutes from "./routes/paystackRoutes.js";
+import nowPaymentsRoutes from "./routes/nowPaymentsRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js"; // ✅ NEW - Contains all webhooks
 import reviewRoutes from "./routes/reviewRoutes.js";
+import Vehicle from "./models/Vehicle.js";
+
+
 
 // check-in notifier removed (access code / property check-in logic removed)
 
@@ -59,7 +63,7 @@ const allowedOrigins = [
   "https://meraki-auto.netlify.app", // Meraki Auto production
   process.env.FRONTEND_URL,            // Override via env if needed
   "http://localhost:3000",
-  "http://localhost:5000",
+  "https://meraki-backend-jdl2.onrender.com",
   "http://localhost:8080",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5500",
@@ -91,6 +95,16 @@ app.use("/api/webhooks/paystack", express.json({
 }));
 
 // ===============================
+// CRITICAL: RAW BODY FOR NOWPAYMENTS IPN
+// Must come BEFORE bodyParser.json()
+// ===============================
+app.use("/api/webhooks/nowpayments/ipn", express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}));
+
+// ===============================
 // REGULAR BODY PARSERS
 // ===============================
 app.use(bodyParser.json());
@@ -110,7 +124,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/payments/mpesa", mpesaRoutes);
 //app.use("/api/test-at", testATRoutes);
 app.use("/api/payments/paystack", paystackRoutes); // Paystack payment initialization
-// ✅ WEBHOOKS - Contains M-Pesa, Visa, and Paystack webhooks
+app.use("/api/payments/nowpayments", nowPaymentsRoutes); // NowPayments (Crypto/USDT)
+// ✅ WEBHOOKS - Contains M-Pesa, Visa, Paystack, and NowPayments webhooks
 app.use("/api/webhooks", webhookRoutes);
 // Access & security routes for access codes removed
 app.use("/api/reviews", reviewRoutes);
@@ -144,6 +159,8 @@ app.get("/api/test", (req, res) => {
   res.send("✅ API is working!");
 });
 
+
+
 // ===========================
 // 3C. DARAJA (M-PESA) TEST ENDPOINTS
 // ===========================
@@ -169,9 +186,7 @@ app.get(/\.html$/, (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend", req.path));
 });
 
-// ===========================
-// 4. DATABASE CONNECTION + SERVER START
-// ===========================
+
 mongoose
   .connect(process.env.MONGO_URI || "mongodb://localhost:27017/meraki_auto")
   .then(() => {
@@ -184,10 +199,11 @@ mongoose
     // Start Express server
     app.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);
-      console.log(`📍 Webhooks available at:`);
-      console.log(`   - POST /api/webhooks/mpesa`);
-      console.log(`   - POST /api/webhooks/visa`);
-      console.log(`   - POST /api/webhooks/paystack`);
+console.log(`📍 Webhooks available at:`);
+    console.log(`   - POST /api/webhooks/mpesa`);
+    console.log(`   - POST /api/webhooks/visa`);
+    console.log(`   - POST /api/webhooks/paystack`);
+    console.log(`   - POST /api/webhooks/nowpayments/ipn`);
     });
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err));

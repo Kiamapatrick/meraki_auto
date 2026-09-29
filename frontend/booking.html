@@ -297,33 +297,38 @@
 
             <!-- Payment methods -->
             <div class="pay-method-grid" id="payMethodGrid">
-              <label class="pay-method-card active" data-method="mpesa">
+              <label class="pay-method-card active" data-method="paystack" data-provider="mpesa">
                 <span class="pay-method-icon">📱</span><span class="pay-method-name">M-Pesa</span>
               </label>
-              <label class="pay-method-card" data-method="visa">
+              <label class="pay-method-card" data-method="paystack" data-provider="card">
                 <span class="pay-method-icon">💳</span><span class="pay-method-name">Card</span>
               </label>
+              <label class="pay-method-card" data-method="nowpayments">
+                <span class="pay-method-icon">₮</span><span class="pay-method-name">USDT</span>
+              </label>
               <label class="pay-method-card" data-method="crypto">
-                <span class="pay-method-icon">🔗</span><span class="pay-method-name">Crypto</span>
+                <span class="pay-method-icon">🦊</span><span class="pay-method-name">Crypto</span>
               </label>
             </div>
             <select id="paymentMethod" class="form-select" style="display:none;">
-              <option value="mpesa" selected>M-Pesa</option>
-              <option value="visa">Card</option>
-              <option value="crypto">Crypto</option>
+              <option value="paystack" selected data-provider="mpesa">M-Pesa (via Paystack)</option>
+              <option value="paystack" data-provider="card">Card (via Paystack)</option>
+              <option value="nowpayments">USDT (NowPayments)</option>
+              <option value="crypto">Crypto (Web3)</option>
             </select>
 
             <!-- Conditional fields -->
-            <div id="mpesaFieldWrapper" class="conditional-field">
-              <div class="premium-input">
-                <input type="tel" id="mpesaPhone" class="form-control" placeholder="M-Pesa Number (254…)"
-                  pattern="254(7|1)[0-9]{8}" />
-              </div>
-            </div>
-            <div id="emailFieldWrapper" class="conditional-field" style="display:none;">
+            <div id="paystackFieldWrapper" class="conditional-field">
               <div class="premium-input">
                 <input type="email" id="guestEmail" class="form-control" placeholder="Email for receipt" />
               </div>
+              <small style="color: var(--text-muted);">You'll be redirected to Paystack to complete payment.</small>
+            </div>
+            <div id="nowpaymentsFieldWrapper" class="conditional-field" style="display:none;">
+              <div class="premium-input">
+                <input type="email" id="guestEmail" class="form-control" placeholder="Email for receipt" />
+              </div>
+              <small style="color: var(--text-muted);">You'll be redirected to NowPayments to pay with USDT.</small>
             </div>
             <div id="cryptoFieldWrapper" class="conditional-field" style="display:none;">
               <div class="crypto-notice">
@@ -787,30 +792,32 @@
       const paymentSelect = document.getElementById("paymentMethod");
       const mpesaW = document.getElementById("mpesaFieldWrapper");
       const emailW = document.getElementById("emailFieldWrapper");
+      const paystackW = document.getElementById("paystackFieldWrapper");
+      const nowpaymentsW = document.getElementById("nowpaymentsFieldWrapper");
       const cryptoW = document.getElementById("cryptoFieldWrapper");
       const cards = document.querySelectorAll(".pay-method-card");
-      function setMethod(m) {
-        cards.forEach(c => c.classList.toggle("active", c.dataset.method === m));
-        paymentSelect.value = m;
-        if (mpesaW) mpesaW.style.display = m === "mpesa" ? "block" : "none";
-        if (emailW) emailW.style.display = m === "visa" ? "block" : "none";
+      function setMethod(m, provider) {
+        cards.forEach(c => c.classList.toggle("active", c.dataset.method === m && c.dataset.provider === provider));
+        // Find the option with matching method and provider
+        const option = paymentSelect.querySelector(`option[value="${m}"][data-provider="${provider || ''}"]`);
+        if (option) paymentSelect.value = option.value;
+        paymentSelect.dataset.provider = provider || '';
+        
+        const isPaystack = m === "paystack";
+        if (paystackW) paystackW.style.display = isPaystack ? "block" : "none";
+        if (nowpaymentsW) nowpaymentsW.style.display = m === "nowpayments" ? "block" : "none";
         if (cryptoW) cryptoW.style.display = m === "crypto" ? "block" : "none";
       }
-      cards.forEach(c => c.addEventListener("click", () => setMethod(c.dataset.method)));
-      if (paymentSelect) setMethod(paymentSelect.value);
+      cards.forEach(c => c.addEventListener("click", () => setMethod(c.dataset.method, c.dataset.provider)));
+      // Initialize with first option's provider
+      const initialOption = paymentSelect.options[paymentSelect.selectedIndex];
+      if (initialOption) setMethod(initialOption.value, initialOption.dataset.provider);
 
       document.getElementById("bookBtn").addEventListener("click", async () => {
         const raw = document.getElementById("guestPhone").value;
         const phone = normalizeKenyanPhone(raw);
         if (!phone || !isValidKenyanPhone(phone)) { showStatus("Enter a valid phone number (07XXXXXXXX)", "error"); return; }
-        let phoneNumber = phone;
-        if (paymentSelect.value === "mpesa") {
-          const rawM = document.getElementById("mpesaPhone").value;
-          const mpesa = normalizeKenyanPhone(rawM);
-          if (!mpesa || !isValidKenyanPhone(mpesa)) { showStatus("Enter a valid M-Pesa phone number", "error"); return; }
-          phoneNumber = mpesa;
-        }
-        console.log("Booking phone:", phoneNumber);
+        console.log("Booking phone:", phone);
       });
     });
   </script>

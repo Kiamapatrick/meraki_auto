@@ -5,6 +5,7 @@ const VehicleSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     image: { type: String, trim: true },
+    images: { type: [String], default: [] },
     dailyPrice: { type: Number, required: true, min: 0 },
     deposit: { type: Number, required: true, min: 0 },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -36,6 +37,7 @@ category: {
       type: [String],
       default: [],
     },
+    seats: { type: Number, min: 1 },
     transmission: { type: String, trim: true },
     fuelType: { type: String, trim: true },
 

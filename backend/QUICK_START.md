@@ -42,7 +42,7 @@ AFRICA_TALKING_API_KEY=...
 # 3. Start the server
 npm start
 
-# Server runs on http://localhost:5000
+# Server runs on https://meraki-backend-jdl2.onrender.com
 ```
 
 ## API Quick Reference
@@ -376,13 +376,13 @@ console.log('Connected!')).catch(e => console.error(e))"
 ### Run Basic Tests
 ```bash
 # Test vehicle endpoints
-curl -X POST http://localhost:5000/vehicles \
+curl -X POST https://meraki-backend-jdl2.onrender.com/vehicles \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"name":"Test Vehicle","dailyPrice":3000,"category":"everyday"}'
 
 # Test booking creation
-curl -X POST http://localhost:5000/bookings \
+curl -X POST https://meraki-backend-jdl2.onrender.com/bookings \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -394,7 +394,7 @@ curl -X POST http://localhost:5000/bookings \
   }'
 
 # Get my bookings
-curl http://localhost:5000/bookings/my \
+curl https://meraki-backend-jdl2.onrender.com/bookings/my \
   -H "Authorization: Bearer $TOKEN"
 ```
 

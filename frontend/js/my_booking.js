@@ -105,7 +105,7 @@ function bookingStatusBadge(bs) {
 
 function methodLabel(method) {
     if (!method) return 'N/A';
-    const map = { mpesa: '📱 M-Pesa', visa: '💳 Card', paystack: '💳 Paystack', crypto: '🔗 Crypto' };
+    const map = { paystack: '💳 Paystack', nowpayments: '₮ USDT', crypto: '🔗 Crypto' };
     return map[method.toLowerCase()] || method;
 }
 

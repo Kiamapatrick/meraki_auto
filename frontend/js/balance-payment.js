@@ -81,29 +81,27 @@ function bp_openModal(booking) {
     const unit = booking.unitId || {};
     const total = booking.fullAmount || booking.totalPrice || 0;
     const balanceDue = Math.max(total - BP_FIXED_DEPOSIT, 0);
-    const method = (booking.paymentMethod || 'mpesa').toLowerCase();
+    const method = (booking.paymentMethod || 'paystack').toLowerCase();
 
-    const isMpesa = method === 'mpesa';
+    const isPaystack = method === 'paystack';
+    const isNowPayments = method === 'nowpayments';
     const isCrypto = method === 'crypto';
-    const isPaystack = method === 'visa' || method === 'paystack';
 
     // Build inner form HTML based on original payment method
     let methodHTML = '';
-    if (isMpesa) {
-        methodHTML = `
-      <div class="bp-field">
-        <label>M-Pesa Number</label>
-        <input id="bp-phone" type="tel"
-               value="${bp_normalizePhone(booking.guestPhone || '')}"
-               placeholder="07XXXXXXXX" />
-        <small>STK push will be sent to this number.</small>
-      </div>`;
-    } else if (isPaystack) {
+    if (isPaystack) {
         methodHTML = `
       <div class="bp-field">
         <label>Email for receipt</label>
         <input id="bp-email" type="email" placeholder="you@example.com" />
         <small>You'll be redirected to Paystack checkout.</small>
+      </div>`;
+    } else if (isNowPayments) {
+        methodHTML = `
+      <div class="bp-field">
+        <label>Email for receipt</label>
+        <input id="bp-email" type="email" placeholder="you@example.com" />
+        <small>You'll be redirected to NowPayments checkout to pay with USDT.</small>
       </div>`;
     } else if (isCrypto) {
         methodHTML = `
@@ -270,13 +268,8 @@ function bp_openModal(booking) {
     payBtn.addEventListener('click', async () => {
         bp_setPayBtnState(true);
 
-        let phone = booking.guestPhone || '';
-        if (isMpesa) {
-            phone = document.getElementById('bp-phone')?.value || phone;
-        }
-
         let email = null;
-        if (isPaystack) {
+        if (isPaystack || isNowPayments) {
             email = document.getElementById('bp-email')?.value?.trim() || null;
             if (!email) {
                 bp_modalStatus('Please enter your email address', 'error');
@@ -286,12 +279,12 @@ function bp_openModal(booking) {
         }
 
         let success = false;
-        if (isMpesa) {
-            success = await bp_mpesaBalance(bookingId, unitId, balanceDue, phone);
-        } else if (isPaystack) {
+        if (isPaystack) {
             success = await bp_paystackBalance(bookingId, unitId, balanceDue, email);
+        } else if (isNowPayments) {
+            success = await bp_nowpaymentsBalance(bookingId, unitId, balanceDue, email);
         } else if (isCrypto) {
-            success = await bp_cryptoBalance(bookingId, unitId, balanceDue, phone);
+            success = await bp_cryptoBalance(bookingId, unitId, balanceDue, booking.guestPhone || '');
         }
 
         if (success) {
@@ -323,7 +316,7 @@ function bp_modalStatus(msg, type = 'info') {
 }
 
 function bp_methodLabel(method) {
-    const map = { mpesa: '📱 M-Pesa', visa: '💳 Card', paystack: '💳 Card', crypto: '🔗 Crypto' };
+    const map = { mpesa: '📱 M-Pesa', visa: '💳 Card', paystack: '💳 Card', nowpayments: '₮ USDT', crypto: '🔗 Crypto' };
     return map[(method || '').toLowerCase()] || method;
 }
 
@@ -440,6 +433,52 @@ async function bp_paystackBalance(bookingId, unitId, balanceDue, email) {
     } catch (err) {
         console.error('bp Paystack balance error:', err);
         bp_modalStatus(err.message || 'Paystack balance payment failed', 'error');
+        return false;
+    }
+}
+
+
+// ── NOWPAYMENTS BALANCE (USDT/Crypto via NowPayments) ───────────
+async function bp_nowpaymentsBalance(bookingId, unitId, balanceDue, email) {
+    try {
+        bp_modalStatus('Initializing NowPayments (USDT)…', 'info');
+
+        // Use provided email or generate a fallback
+        const resolvedEmail = email || `user${Date.now()}@merakiauto.com`;
+
+        const res = await fetch(`${BP_API_BASE}/api/payments/nowpayments/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${bp_getToken()}`
+            },
+            body: JSON.stringify({
+                backendBookingId: bookingId,  // ← existing booking
+                amount: balanceDue,
+                type: 'balance',              // ← tells backend this is a balance payment
+                email: resolvedEmail
+            })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to initialize NowPayments balance payment');
+
+        // Persist so we can verify after redirect back
+        localStorage.setItem('pendingNowPaymentsBalance', JSON.stringify({
+            bookingId,
+            unitId,
+            timestamp: Date.now()
+        }));
+
+        bp_modalStatus('Redirecting to NowPayments…', 'info');
+
+        // Small delay so user sees the message, then redirect
+        setTimeout(() => { window.location.href = data.invoiceUrl; }, 800);
+
+        return true; // optimistic — page will redirect
+    } catch (err) {
+        console.error('bp NowPayments balance error:', err);
+        bp_modalStatus(err.message || 'NowPayments balance payment failed', 'error');
         return false;
     }
 }
@@ -574,13 +613,84 @@ export async function bp_checkPaystackCallback() {
 }
 
 
+// ── NOWPAYMENTS CALLBACK HANDLER (my_booking.html entry point) ──
+// Called on DOMContentLoaded to check if we're returning from NowPayments.
+export async function bp_checkNowPaymentsCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment'); // 'success' or 'cancel'
+    const returnedId = params.get('bookingId');
+
+    // Also check localStorage for pending balance payment
+    let bookingId = returnedId;
+    if (!bookingId) {
+        try {
+            const stored = JSON.parse(localStorage.getItem('pendingNowPaymentsBalance') || 'null');
+            if (stored && Date.now() - stored.timestamp < 10 * 60 * 1000) {
+                bookingId = stored.bookingId;
+            }
+        } catch { /* ignore */ }
+    }
+
+    // Not a NowPayments callback
+    if (!bookingId && paymentStatus !== 'cancel') return;
+
+    // If user cancelled payment
+    if (paymentStatus === 'cancel') {
+        bp_showStatus('Payment was cancelled. You can try again.', 'info');
+        localStorage.removeItem('pendingNowPaymentsBalance');
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+    }
+
+    const token = bp_getToken();
+    if (!token) {
+        bp_showStatus('Payment received! Please log in to view your booking.', 'success');
+        return;
+    }
+
+    bp_showStatus('Verifying balance payment…', 'info');
+
+    let confirmed = false;
+    const max = 20;
+    for (let i = 0; i < max && !confirmed; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+            const res = await fetch(`${BP_API_BASE}/api/book/my`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) break;
+            const { bookings = [] } = await res.json();
+
+            // Find our booking — look for balancePaid === true
+            const b = bookings.find(b =>
+                (b.bookingId === bookingId || b._id === bookingId) && b.balancePaid === true
+            );
+
+            if (b) {
+                confirmed = true;
+                localStorage.removeItem('pendingNowPaymentsBalance');
+                // Clean URL — keep only the page itself
+                window.history.replaceState({}, '', window.location.pathname);
+                bp_showStatus('✅ Balance payment confirmed! Booking fully paid.', 'success');
+                // Trigger a refresh of the bookings list
+                document.dispatchEvent(new CustomEvent('bp:payment-complete'));
+            }
+        } catch { /* continue polling */ }
+    }
+
+    if (!confirmed) {
+        bp_showStatus('Could not verify balance payment. Check your bookings shortly.', 'error');
+    }
+}
+
+
 // ── PUBLIC ENTRY POINT ────────────────────────────────────────
 /**
  * Call this to open the balance payment modal for a booking object.
  * The booking object must have:
  *   - bookingId (or _id)
  *   - unitId (object or string)
- *   - paymentMethod  ('mpesa' | 'visa' | 'paystack' | 'crypto')
+ *   - paymentMethod  ('mpesa' | 'visa' | 'paystack' | 'nowpayments' | 'crypto')
  *   - fullAmount (or totalPrice)
  *   - guestPhone
  *   - depositPaid: true

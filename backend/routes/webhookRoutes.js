@@ -1,12 +1,13 @@
 // ===============================
 // routes/webhookRoutes.js - ALL Payment Webhooks
-// M-Pesa, Visa, and Paystack
+// M-Pesa, Visa, Paystack, and NowPayments
 // ===============================
 import express from "express";
 import Booking from "../models/Booking.js";
 import MpesaPendingBooking from "../models/MpesaPendingBooking.js";
 import User from "../models/user.js";
 import { handlePaystackWebhook } from "../controllers/paystackController.js";
+import { handleIPN as handleNowPaymentsIPN } from "../controllers/nowPaymentsController.js";
 
 const router = express.Router();
 
@@ -584,5 +585,16 @@ router.post("/visa", async (req, res) => {
 // Note: This route requires raw body middleware
 // Set up in app.js/server.js BEFORE bodyParser.json()
 router.post("/paystack", handlePaystackWebhook);
+
+// ===============================
+// NOWPAYMENTS IPN WEBHOOK
+// ===============================
+// Note: This route requires raw body middleware for signature verification
+// Set up in server.js BEFORE bodyParser.json()
+router.post("/nowpayments/ipn", express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}), handleNowPaymentsIPN);
 
 export default router;
